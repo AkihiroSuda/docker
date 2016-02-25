@@ -1056,6 +1056,13 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		return err
 	}
 
+	// enable rslave by calling Unshare().
+	// Should we call Unshare() here? I don't think so, actually..
+	err = syscall.Unshare(syscall.CLONE_NEWNS)
+	if err != nil {
+		return err
+	}
+
 	for _, m := range mounts {
 		dest, err := container.GetResourcePath(m.Destination)
 		if err != nil {
@@ -1075,6 +1082,9 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		if m.Writable {
 			opts = "rbind,rw"
 		}
+		opts = opts + ",rslave"
+		logrus.Debugf("Calling mount.Mount(\"%s\",\"%s\",\"%s\",\"%s\")",
+			m.Source, dest, "bind", opts)
 
 		if err := mount.Mount(m.Source, dest, "bind", opts); err != nil {
 			return err
