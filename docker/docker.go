@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
@@ -13,6 +14,13 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 )
+
+func init() {
+	runtime.LockOSThread()
+	if err := enableSlaveMount(); err != nil {
+		logrus.Fatalf("Failed to enable slave-mount: %v", err)
+	}
+}
 
 func main() {
 	if reexec.Init() {

@@ -57,3 +57,8 @@ func setupConfigReloadTrap(configFile string, flags *mflag.FlagSet, reload func(
 		}
 	}()
 }
+
+// enableSlaveMount doesn't do anything on windows
+func enableSlaveMount() error {
+	return nil
+}

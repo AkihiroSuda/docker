@@ -66,3 +66,14 @@ func setupConfigReloadTrap(configFile string, flags *mflag.FlagSet, reload func(
 		}
 	}()
 }
+
+func enableSlaveMount() error {
+	logrus.Debugf("Creating a new namespace for Docker itself, so as to enable slave-mount")
+	if err := syscall.Unshare(syscall.CLONE_NEWNS); err != nil {
+		return err
+	}
+	if err := syscall.Mount("", "/", "dontcare", syscall.MS_REC|syscall.MS_SLAVE, ""); err != nil {
+		return err
+	}
+	return nil
+}
