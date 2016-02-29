@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -380,6 +381,19 @@ func (daemon *Daemon) usingSystemd() bool {
 	return usingSystemd(daemon.configStore)
 }
 
+func getMountInfo(s string) (*mount.Info, error) {
+	minfos, err := mount.GetMounts()
+	if err != nil {
+		return nil, err
+	}
+	for _, mi := range minfos {
+		if mi.Mountpoint == s {
+			return mi, nil
+		}
+	}
+	return nil, fmt.Errorf("Mount info for %s not found", s)
+}
+
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
@@ -430,6 +444,21 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		// CgroupParent for systemd cgroup should be named as "xxx.slice"
 		if len(hostConfig.CgroupParent) <= 6 || !strings.HasSuffix(hostConfig.CgroupParent, ".slice") {
 			return warnings, fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
+		}
+	}
+	logrus.Debugf("* Binds=%s", hostConfig.Binds)
+	for _, b := range hostConfig.Binds {
+		if strings.HasPrefix(b, "/dev:") {
+			mi, err := getMountInfo("/")
+			if err != nil {
+				return warnings, err
+			}
+			logrus.Debugf("* MI=%#v, Optional=%s", mi, mi.Optional)
+			if !strings.HasPrefix(mi.Optional, "master:") {
+				return warnings, fmt.Errorf("Cannot bind /dev when / is not slave-mounted. " +
+					"Please start the daemon from systemd with \"MountFlags=slave\", " +
+					"If systemd is not available in your system, please start the daemon from unshared(1).")
+			}
 		}
 	}
 	return warnings, nil
