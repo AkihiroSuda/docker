@@ -2,7 +2,6 @@ package logger
 
 import (
 	"bufio"
-	"bytes"
 	"io"
 	"sync"
 	"time"
@@ -45,26 +44,38 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 	defer c.copyJobs.Done()
 	reader := bufio.NewReader(src)
 
+	scanner := bufio.NewScanner(reader)
+
+	lastErrTooLong := time.Unix(0, 0)
 	for {
 		select {
 		case <-c.closed:
 			return
 		default:
-			line, err := reader.ReadBytes('\n')
-			line = bytes.TrimSuffix(line, []byte{'\n'})
-
-			// ReadBytes can return full or partial output even when it failed.
-			// e.g. it can return a full entry and EOF.
-			if err == nil || len(line) > 0 {
+			scanned := scanner.Scan()
+			err := scanner.Err()
+			if !scanned && err != nil {
+				if err == bufio.ErrTooLong {
+					if time.Now().Sub(lastErrTooLong) > 10*time.Minute {
+						logrus.Errorf("Error scanning log stream (this error is only printed per 10 minutes): %s", err)
+					}
+					lastErrTooLong = time.Now()
+					continue
+				} else {
+					logrus.Errorf("Error scanning log stream: %s", err)
+				}
+			}
+			line := scanner.Bytes()
+			if len(line) > 0 {
+				if !scanned {
+					line = append([]byte("<incomplete>"), line...)
+				}
 				if logErr := c.dst.Log(&Message{ContainerID: c.cid, Line: line, Source: name, Timestamp: time.Now().UTC()}); logErr != nil {
 					logrus.Errorf("Failed to log msg %q for logger %s: %s", line, c.dst.Name(), logErr)
 				}
 			}
-
-			if err != nil {
-				if err != io.EOF {
-					logrus.Errorf("Error scanning log stream: %s", err)
-				}
+			if err == nil {
+				// scanner doesn't return io.EOF
 				return
 			}
 		}
