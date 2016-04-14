@@ -46,25 +46,19 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 
 	scanner := bufio.NewScanner(reader)
 
-	lastErrTooLong := time.Unix(0, 0)
 	for {
 		select {
 		case <-c.closed:
 			return
 		default:
-			scanned := scanner.Scan()
-			err := scanner.Err()
-			if !scanned && err != nil {
+			scanned, err := scanner.Scan(), scanner.Err()
+			if err != nil {
+				logrus.Errorf("Error scanning log stream: %s", err)
 				if err == bufio.ErrTooLong {
-					if time.Now().Sub(lastErrTooLong) > 10*time.Minute {
-						logrus.Errorf("Error scanning log stream (this error is only printed per 10 minutes): %s", err)
-					}
-					lastErrTooLong = time.Now()
-					continue
-				} else {
-					logrus.Errorf("Error scanning log stream: %s", err)
+					return
 				}
 			}
+
 			line := scanner.Bytes()
 			if len(line) > 0 {
 				if !scanned {
@@ -74,7 +68,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 					logrus.Errorf("Failed to log msg %q for logger %s: %s", line, c.dst.Name(), logErr)
 				}
 			}
-			if err == nil {
+			if !scanned && err == nil {
 				// scanner doesn't return io.EOF
 				return
 			}
