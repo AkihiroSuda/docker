@@ -222,6 +222,11 @@ if \
 	HAVE_GO_TEST_COVER=1
 fi
 
+GCCGOFLAGS=
+if [[ "$(go version)" == *"gccgo"* ]]; then
+	GCCGOFLAGS+=-gccgoflags="-lpthread"
+fi
+
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, eg.
 #
@@ -250,10 +255,11 @@ go_test_dir() {
 		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		cd "$dir"
 		export DEST="$ABS_DEST" # we're in a subshell, so this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		go test -c -o "$testbinary" ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
+		go test -c -o "$testbinary" ${testcover[@]} "$GCCGOFLAGS" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
 		i=0
 		while ((++i)); do
-			test_env "$testbinary" ${testcoverprofile[@]} $TESTFLAGS
+			# fakeExecCommand for pkg/integration requires realpath for its os.Args[0]
+			test_env $(realpath "$testbinary") ${testcoverprofile[@]} $TESTFLAGS
 			if [ $i -gt "$TEST_REPEAT" ]; then
 				break
 			fi
@@ -278,6 +284,8 @@ test_env() {
 		HOME="$ABS_DEST/fake-HOME" \
 		PATH="$PATH" \
 		TEMP="$TEMP" \
+		USERPROFILE="$ABS_DEST/fake-USERPROFILE" \
+		ProgramData="$ABS_DEST/fake-ProgramData" \
 		"$@"
 }
 
