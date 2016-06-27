@@ -10,7 +10,7 @@
 # a .bashrc may be added to customize the build environment
 .bashrc
 .gopath/
-.pkgcache/*
+.pkgcache/*/*
 autogen/
 bundles/
 cmd/dockerd/dockerd

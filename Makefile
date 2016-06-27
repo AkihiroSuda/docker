@@ -36,7 +36,7 @@ DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/do
 
 # enable .pkgcache if DOCKER_INCREMENTAL_BINARY and DOCKER_MOUNT (i.e.DOCKER_HOST) are set
 PKGCACHE_DIR := $(if $(PKGCACHE_DIR),$(PKGCACHE_DIR),.pkgcache)
-DOCKER_MOUNT := $(if $(DOCKER_INCREMENTAL_BINARY),$(DOCKER_MOUNT) -v "$(CURDIR)/$(PKGCACHE_DIR)/1:/go/pkg"  -v "$(CURDIR)/$(PKGCACHE_DIR)/2:/go/src/github.com/docker/docker/vendor/pkg" -v "$(CURDIR)/$(PKGCACHE_DIR)/3:/usr/local/go/pkg/linux_amd64_netgo",$(DOCKER_MOUNT))
+DOCKER_MOUNT := $(if $(DOCKER_INCREMENTAL_BINARY),$(DOCKER_MOUNT) -v "$(CURDIR)/$(PKGCACHE_DIR)/gopath_cache:/go/pkg"  -v "$(CURDIR)/$(PKGCACHE_DIR)/vendor_cache:/go/src/github.com/docker/docker/vendor/pkg" -v "$(CURDIR)/$(PKGCACHE_DIR)/goroot_linux_amd64_netgo_cache:/usr/local/go/pkg/linux_amd64_netgo",$(DOCKER_MOUNT))
 
 # This allows the test suite to be able to run without worrying about the underlying fs used by the container running the daemon (e.g. aufs-on-aufs), so long as the host running the container is running a supported fs.
 # The volume will be cleaned up when the container is removed due to `--rm`.
