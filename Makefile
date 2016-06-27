@@ -34,6 +34,10 @@ DOCKER_ENVS := \
 BIND_DIR := $(if $(BINDDIR),$(BINDDIR),$(if $(DOCKER_HOST),,bundles))
 DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/docker/docker/$(BIND_DIR)")
 
+# enable .pkgcache if DOCKER_INCREMENTAL_BINARY and DOCKER_MOUNT (i.e.DOCKER_HOST) are set
+PKGCACHE_DIR := $(if $(PKGCACHE_DIR),$(PKGCACHE_DIR),.pkgcache)
+DOCKER_MOUNT := $(if $(DOCKER_INCREMENTAL_BINARY),$(DOCKER_MOUNT) -v "$(CURDIR)/$(PKGCACHE_DIR):/go/pkg",$(DOCKER_MOUNT))
+
 # This allows the test suite to be able to run without worrying about the underlying fs used by the container running the daemon (e.g. aufs-on-aufs), so long as the host running the container is running a supported fs.
 # The volume will be cleaned up when the container is removed due to `--rm`.
 # Note that `BIND_DIR` will already be set to `bundles` if `DOCKER_HOST` is not set (see above BIND_DIR line), in such case this will do nothing since `DOCKER_MOUNT` will already be set.
