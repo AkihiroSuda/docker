@@ -186,6 +186,9 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 func (daemon *Daemon) Cleanup(container *container.Container) {
 	daemon.releaseNetwork(container)
 
+	if container.HostConfig.InspectionFS {
+		container.UnmountInspectionFS()
+	}
 	container.UnmountIpcMounts(detachMounted)
 
 	if err := daemon.conditionalUnmountOnCleanup(container); err != nil {
