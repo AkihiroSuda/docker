@@ -9,6 +9,8 @@ import (
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/introspection"
+	"github.com/docker/docker/volume/store"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 )
@@ -66,6 +68,7 @@ func (m mounts) parts(i int) int {
 // 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
 // 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
 // 4. Cleanup old volumes that are about to be reassigned.
+// FIXME: This function is too complicated and needs to be refactored
 func (daemon *Daemon) registerMountPoints(container *container.Container, hostConfig *containertypes.HostConfig) (retErr error) {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volume.MountPoint{}
@@ -121,7 +124,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 	}
 
-	// 3. Read bind mounts
+	// 3. Read bind mounts and introspection mount
 	for _, b := range hostConfig.Binds {
 		// #10618
 		bind, err := volume.ParseMountSpec(b, hostConfig.VolumeDriver)
@@ -134,7 +137,27 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			return fmt.Errorf("Duplicate mount point '%s'", bind.Destination)
 		}
 
-		if len(bind.Name) > 0 {
+		if bind.Name == introspection.BaseVolumeName {
+			v, err := daemon.volumes.Get(bind.Name)
+			if err != nil {
+				return err
+			}
+			base, ok := store.UnwrapVolume(v).(*introspection.Base)
+			if !ok {
+				return fmt.Errorf("%s is not *introspection.Base: %#v",
+					bind.Name, v)
+			}
+			v, err = base.ContainerVolume(container.ID)
+			if err != nil {
+				return err
+			}
+			bind.Volume = v
+			bind.Source = v.Path()
+			bind.RW = false
+			bind.Driver = v.DriverName()
+			bind.Named = true
+			bind.CopyData = false
+		} else if len(bind.Name) > 0 {
 			// create the volume
 			v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil, nil)
 			if err != nil {
