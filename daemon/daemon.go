@@ -54,6 +54,7 @@ import (
 	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
+	"github.com/docker/docker/volume/reserved"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
@@ -865,14 +866,24 @@ func setDefaultMtu(config *Config) {
 }
 
 func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore, error) {
-	volumesDriver, err := local.New(daemon.configStore.Root, rootUID, rootGID)
+	localDriver, err := local.New(daemon.configStore.Root, rootUID, rootGID)
 	if err != nil {
 		return nil, err
 	}
 
-	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
+	if !volumedrivers.Register(localDriver, localDriver.Name()) {
 		return nil, fmt.Errorf("local volume driver could not be registered")
 	}
+
+	reservedDriver, err := reserved.New()
+	if err != nil {
+		return nil, err
+	}
+
+	if !volumedrivers.Register(reservedDriver, reservedDriver.Name()) {
+		return nil, fmt.Errorf("reserved volume driver could not be registered")
+	}
+
 	return store.New(daemon.configStore.Root)
 }
 
