@@ -303,7 +303,8 @@ func (v *localVolume) Path() string {
 }
 
 // Mount implements the localVolume interface, returning the data location.
-func (v *localVolume) Mount(id string) (string, error) {
+// containerID is ignored.
+func (v *localVolume) Mount(id, containerID string) (string, error) {
 	v.m.Lock()
 	defer v.m.Unlock()
 	if v.opts != nil {

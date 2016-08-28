@@ -189,7 +189,7 @@ func TestCreateWithOpts(t *testing.T) {
 	}
 	v := vol.(*localVolume)
 
-	dir, err := v.Mount("1234")
+	dir, err := v.Mount("1234", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +233,7 @@ func TestCreateWithOpts(t *testing.T) {
 	}
 
 	// test double mount
-	if _, err := v.Mount("1234"); err != nil {
+	if _, err := v.Mount("1234", ""); err != nil {
 		t.Fatal(err)
 	}
 	if v.active.count != 2 {
@@ -322,7 +322,7 @@ func TestRealodNoOpts(t *testing.T) {
 		if lv.opts != nil {
 			t.Fatalf("expected opts to be nil, got: %v", lv.opts)
 		}
-		if _, err := lv.Mount("1234"); err != nil {
+		if _, err := lv.Mount("1234", ""); err != nil {
 			t.Fatal(err)
 		}
 	}

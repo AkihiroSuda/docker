@@ -2,6 +2,7 @@ package volumedrivers
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -140,7 +141,11 @@ func (a *volumeAdapter) CachedPath() string {
 	return a.eMount
 }
 
-func (a *volumeAdapter) Mount(id string) (string, error) {
+func (a *volumeAdapter) Mount(id, containerID string) (string, error) {
+	if containerID != "" {
+		fmt.Errorf("expected containerID to be empty, got %q",
+			containerID)
+	}
 	var err error
 	a.eMount, err = a.proxy.Mount(a.name, id)
 	return a.eMount, err

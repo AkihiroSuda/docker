@@ -28,7 +28,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err := daemon.lazyInitializeVolume(c.ID, m); err != nil {
 			return nil, err
 		}
-		path, err := m.Setup(c.MountLabel)
+		path, err := m.Setup(c.MountLabel, c.ID)
 		if err != nil {
 			return nil, err
 		}

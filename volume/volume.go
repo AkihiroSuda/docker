@@ -58,8 +58,9 @@ type Volume interface {
 	// Path returns the absolute path to the volume.
 	Path() string
 	// Mount mounts the volume and returns the absolute path to
-	// where it can be consumed.
-	Mount(id string) (string, error)
+	// where it can be consumed. containerID can be an empty string.
+	// Even if containerID is not empty, the driver can ignore that value.
+	Mount(id, containerID string) (string, error)
 	// Unmount unmounts the volume when it is no longer in use.
 	Unmount(id string) error
 	// Status returns low-level status information about a volume
@@ -107,12 +108,12 @@ type MountPoint struct {
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup(mountLabel string) (string, error) {
+func (m *MountPoint) Setup(mountLabel, containerID string) (string, error) {
 	if m.Volume != nil {
 		if m.ID == "" {
 			m.ID = stringid.GenerateNonCryptoID()
 		}
-		return m.Volume.Mount(m.ID)
+		return m.Volume.Mount(m.ID, containerID)
 	}
 	if len(m.Source) == 0 {
 		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")

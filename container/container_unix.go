@@ -189,7 +189,7 @@ func (container *Container) CopyImagePathContent(v volume.Volume, destination st
 	}
 
 	id := stringid.GenerateNonCryptoID()
-	path, err := v.Mount(id)
+	path, err := v.Mount(id, container.ID)
 	if err != nil {
 		return err
 	}
