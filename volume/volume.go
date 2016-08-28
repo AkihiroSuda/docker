@@ -78,6 +78,24 @@ type ScopedVolume interface {
 	Volume
 }
 
+// ContainerBaseVolume is the parent for ContainerVolume instances.
+// ContainerBaseVolume cannot be Mounted.
+type ContainerBaseVolume interface {
+	ContainerVolume(containerID string) (ContainerVolume, error)
+	Volume
+}
+
+// ContainerVolume is the per-container volume.
+type ContainerVolume interface {
+	Connector() ContainerVolumeConnector
+	Volume
+}
+
+type ContainerVolumeConnector interface {
+	ContainerID() string
+	Update(path string, content []byte, perm os.FileMode) error
+}
+
 // MountPoint is the intersection point between a volume and a container. It
 // specifies which volume is to be used and where inside a container it should
 // be mounted.

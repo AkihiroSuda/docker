@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 	"text/scanner"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/random"
 )
 
 // exclusion returns true if the specified pattern is an exclusion
@@ -280,4 +282,17 @@ func CreateIfNotExists(path string, isDir bool) error {
 		}
 	}
 	return nil
+}
+
+// WriteFileAtomic is similar to io/ioutil.WriteFile but atomic
+func WriteFileAtomic(filename string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(filename)
+	tmpBasename := fmt.Sprintf("%s.%d", filepath.Base(filename), random.Rand.Uint32())
+	tmp := filepath.Join(dir, tmpBasename)
+	if err := ioutil.WriteFile(tmp, data, perm); err != nil {
+		return err
+	}
+	// TODO: assert(filesystemOf(filename) == filesystemOf(tmp))
+	// os.Rename calls rename(2) on UNIX, MoveFileW on Windows
+	return os.Rename(tmp, filename)
 }

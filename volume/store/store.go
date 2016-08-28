@@ -422,7 +422,7 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 	}
 
 	logrus.Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), name)
-	vol := unwrapVolume(v)
+	vol := UnwrapVolume(v)
 	if err := vd.Remove(vol); err != nil {
 		return &OpErr{Err: err, Name: name, Op: "remove"}
 	}
@@ -510,7 +510,7 @@ func (s *VolumeStore) filter(vols []volume.Volume, f filterFunc) []volume.Volume
 	return ls
 }
 
-func unwrapVolume(v volume.Volume) volume.Volume {
+func UnwrapVolume(v volume.Volume) volume.Volume {
 	if vol, ok := v.(volumeWrapper); ok {
 		return vol.Volume
 	}
