@@ -13,6 +13,8 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/introspection"
+	"github.com/docker/docker/volume/store"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -69,6 +71,7 @@ func (m mounts) parts(i int) int {
 // 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
 // 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
 // 4. Cleanup old volumes that are about to be reassigned.
+// FIXME: This function is too complicated and needs to be refactored
 func (daemon *Daemon) registerMountPoints(container *container.Container, hostConfig *containertypes.HostConfig) (retErr error) {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volume.MountPoint{}
@@ -125,7 +128,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 	}
 
-	// 3. Read bind mounts
+	// 3. Read bind mounts and introspection mount
 	for _, b := range hostConfig.Binds {
 		bind, err := volume.ParseMountRaw(b, hostConfig.VolumeDriver)
 		if err != nil {
@@ -139,17 +142,38 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		if bind.Type == mounttypes.TypeVolume {
-			// create the volume
-			v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil, nil)
-			if err != nil {
-				return err
-			}
-			bind.Volume = v
-			bind.Source = v.Path()
-			// bind.Name is an already existing volume, we need to use that here
-			bind.Driver = v.DriverName()
-			if bind.Driver == volume.DefaultDriverName {
-				setBindModeIfNull(bind)
+			if bind.Name == introspection.BaseVolumeName {
+				v, err := daemon.volumes.Get(bind.Name)
+				if err != nil {
+					return err
+				}
+				base, ok := store.UnwrapVolume(v).(*introspection.Base)
+				if !ok {
+					return fmt.Errorf("%s is not *introspection.Base: %#v",
+						bind.Name, v)
+				}
+				v, err = base.ContainerVolume(container.ID)
+				if err != nil {
+					return err
+				}
+				bind.Volume = v
+				bind.Source = v.Path()
+				bind.RW = false
+				bind.Driver = v.DriverName()
+				bind.CopyData = false
+			} else {
+				// create the volume
+				v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil, nil)
+				if err != nil {
+					return err
+				}
+				bind.Volume = v
+				bind.Source = v.Path()
+				// bind.Name is an already existing volume, we need to use that here
+				bind.Driver = v.DriverName()
+				if bind.Driver == volume.DefaultDriverName {
+					setBindModeIfNull(bind)
+				}
 			}
 		}
 

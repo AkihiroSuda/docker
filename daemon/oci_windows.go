@@ -53,6 +53,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		}
 		s.Mounts = append(s.Mounts, m)
 	}
+	if err := daemon.updateIntrospection(c); err != nil {
+		return nil, err
+	}
 
 	// In s.Process
 	s.Process.Args = append([]string{c.Path}, c.Args...)

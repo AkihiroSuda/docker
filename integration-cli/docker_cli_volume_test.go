@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -91,9 +92,11 @@ func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 
 	out, _ := dockerCmd(c, "volume", "ls")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 4, check.Commentf("\n%s", out))
+	c.Assert(len(outArr), check.Equals, 5, check.Commentf("\n%s", out))
 
-	assertVolList(c, out, []string{"aaa", "soo", "test"})
+	expected := append(predefinedVolumes, []string{"aaa", "soo", "test"}...)
+	sort.Strings(expected)
+	assertVolList(c, out, expected)
 }
 
 func (s *DockerSuite) TestVolumeLsFormat(c *check.C) {
@@ -104,7 +107,8 @@ func (s *DockerSuite) TestVolumeLsFormat(c *check.C) {
 	out, _ := dockerCmd(c, "volume", "ls", "--format", "{{.Name}}")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 
-	expected := []string{"aaa", "soo", "test"}
+	expected := append(predefinedVolumes, []string{"aaa", "soo", "test"}...)
+	sort.Strings(expected)
 	var names []string
 	for _, l := range lines {
 		names = append(names, l)
@@ -131,6 +135,10 @@ func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *check.C) {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 
 	expected := []string{"aaa default", "soo default", "test default"}
+	for _, f := range predefinedVolumes {
+		expected = append(expected, f+" default")
+	}
+	sort.Strings(expected)
 	var names []string
 	for _, l := range lines {
 		names = append(names, l)
@@ -240,7 +248,7 @@ func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
 
 	out, _ = dockerCmd(c, "volume", "ls")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
+	c.Assert(len(outArr), check.Equals, 1+len(predefinedVolumes), check.Commentf("%s\n", out))
 
 	volumeID := "testing"
 	dockerCmd(c, "run", "-v", volumeID+":"+prefix+"/foo", "--name=test", "busybox", "sh", "-c", "echo hello > /foo/bar")
@@ -397,7 +405,7 @@ func (s *DockerSuite) TestVolumeCliRmForceUsage(c *check.C) {
 
 	out, _ = dockerCmd(c, "volume", "ls")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
+	c.Assert(len(outArr), check.Equals, 1+len(predefinedVolumes), check.Commentf("%s\n", out))
 }
 
 func (s *DockerSuite) TestVolumeCliRmForce(c *check.C) {

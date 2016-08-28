@@ -53,6 +53,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
+	"github.com/docker/docker/volume/introspection"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
@@ -102,6 +103,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
+	cluster                   IntrospectableCluster
 }
 
 func (daemon *Daemon) restore() error {
@@ -912,16 +914,26 @@ func setDefaultMtu(config *Config) {
 }
 
 func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore, error) {
-	volumesDriver, err := local.New(daemon.configStore.Root, rootUID, rootGID)
+	localDriver, err := local.New(daemon.configStore.Root, rootUID, rootGID)
 	if err != nil {
 		return nil, err
 	}
 
 	volumedrivers.RegisterPluginGetter(daemon.pluginStore)
 
-	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
+	if !volumedrivers.Register(localDriver, localDriver.Name()) {
 		return nil, fmt.Errorf("local volume driver could not be registered")
 	}
+
+	introspectionDriver, err := introspection.New(daemon.configStore.Root, rootUID, rootGID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !volumedrivers.Register(introspectionDriver, introspectionDriver.Name()) {
+		return nil, fmt.Errorf("introspection volume driver could not be registered")
+	}
+
 	return store.New(daemon.configStore.Root)
 }
 
@@ -1167,4 +1179,14 @@ func copyBlkioEntry(entries []*containerd.BlkioStatsEntry) []types.BlkioStatEntr
 		}
 	}
 	return out
+}
+
+// GetCluster returns the cluster
+func (daemon *Daemon) GetCluster() IntrospectableCluster {
+	return daemon.cluster
+}
+
+// SetCluster sets the cluster
+func (daemon *Daemon) SetCluster(cluster IntrospectableCluster) {
+	daemon.cluster = cluster
 }
