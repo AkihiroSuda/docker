@@ -427,12 +427,20 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *check.C) {
 	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "abc3")
 	out, _ := dockerCmd(c, "volume", "ls")
 	ls := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(ls), check.Equals, 2, check.Commentf("\n%s", out))
+	if len(predefinedVolumes) != 1 {
+		panic("you need to update this test after modifying predefinedVolumes")
+	}
+	c.Assert(len(ls), check.Equals, 2+len(predefinedVolumes), check.Commentf("\n%s", out))
 
-	vol := strings.Fields(ls[len(ls)-1])
+	vol := strings.Fields(ls[1])
 	c.Assert(len(vol), check.Equals, 2, check.Commentf("%v", vol))
 	c.Assert(vol[0], check.Equals, "test-external-volume-driver")
 	c.Assert(vol[1], check.Equals, "abc3")
+
+	vol = strings.Fields(ls[2])
+	c.Assert(len(vol), check.Equals, 2, check.Commentf("%v", vol))
+	c.Assert(vol[0], check.Equals, "introspection")
+	c.Assert(vol[1], check.Equals, predefinedVolumes[0])
 
 	c.Assert(s.ec.lists, check.Equals, 1)
 }

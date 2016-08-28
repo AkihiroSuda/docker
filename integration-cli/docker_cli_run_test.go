@@ -4293,6 +4293,15 @@ func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *check.C) {
+	assertVolumes := func(out string) {
+		if len(predefinedVolumes) != 1 {
+			panic("you need to update this test after modifying predefinedVolumes")
+		}
+		volumes := sort.StringSlice(strings.Split(strings.TrimSpace(out), "\n"))
+		c.Assert(volumes, checker.HasLen, 1+len(predefinedVolumes))
+		c.Assert(volumes[0], checker.Equals, predefinedVolumes[0])
+		c.Assert(volumes[1], checker.Equals, "test")
+	}
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	dockerCmd(c, "volume", "create", "test")
@@ -4300,13 +4309,13 @@ func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *check.C) {
 	dockerCmd(c, "run", "--rm", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+	assertVolumes(out)
 
 	dockerCmd(c, "run", "--name=test", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "rm", "-fv", "test")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+	assertVolumes(out)
 }
 
 func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
@@ -4322,7 +4331,13 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 	dockerCmd(c, "rm", "-fv", "child")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+	if len(predefinedVolumes) != 1 {
+		panic("you need to update this test after modifying predefinedVolumes")
+	}
+	volumes := sort.StringSlice(strings.Split(strings.TrimSpace(out), "\n"))
+	c.Assert(volumes, checker.HasLen, 1+len(predefinedVolumes))
+	c.Assert(volumes[0], checker.Equals, predefinedVolumes[0])
+	c.Assert(volumes[1], checker.Equals, "test")
 }
 
 func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
