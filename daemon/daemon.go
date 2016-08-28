@@ -103,6 +103,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
+	cluster                   IntrospectableCluster
 }
 
 func (daemon *Daemon) restore() error {
@@ -1178,4 +1179,14 @@ func copyBlkioEntry(entries []*containerd.BlkioStatsEntry) []types.BlkioStatEntr
 		}
 	}
 	return out
+}
+
+// GetCluster returns the cluster
+func (daemon *Daemon) GetCluster() IntrospectableCluster {
+	return daemon.cluster
+}
+
+// SetCluster sets the cluster
+func (daemon *Daemon) SetCluster(cluster IntrospectableCluster) {
+	daemon.cluster = cluster
 }

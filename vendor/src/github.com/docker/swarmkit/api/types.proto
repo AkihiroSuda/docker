@@ -140,6 +140,7 @@ message Mount {
 		BIND = 0 [(gogoproto.enumvalue_customname) = "MountTypeBind"]; // Bind mount host dir
 		VOLUME = 1 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
 		TMPFS = 2 [(gogoproto.enumvalue_customname) = "MountTypeTmpfs"]; // Mount a tmpfs
+		INTROSPECTION = 3 [(gogoproto.enumvalue_customname) = "MountTypeIntrospection"]; // Mount a introspection
 	}
 
 	// Type defines the nature of the mount.

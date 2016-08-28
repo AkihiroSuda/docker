@@ -8,6 +8,8 @@ const (
 	TypeBind Type = "bind"
 	// TypeVolume VOLUME
 	TypeVolume Type = "volume"
+	// TypeIntrospection INTROSPECTION
+	TypeIntrospection Type = "introspection"
 )
 
 // Mount represents a mount (volume).

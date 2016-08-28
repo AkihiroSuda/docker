@@ -87,6 +87,19 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 				return &errMountConfig{mnt, err}
 			}
 		}
+	case mount.TypeIntrospection:
+		if mnt.BindOptions != nil {
+			return &errMountConfig{mnt, errExtraField("BindOptions")}
+		}
+		if mnt.VolumeOptions != nil {
+			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
+		}
+		if mnt.Source != "" {
+			return &errMountConfig{mnt, errExtraField("Source")}
+		}
+		if !mnt.ReadOnly {
+			return &errMountConfig{mnt, errMissingField("ReadOnly")}
+		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
 	}

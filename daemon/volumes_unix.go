@@ -4,12 +4,14 @@ package daemon
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
@@ -27,8 +29,28 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 	for _, m := range c.TmpfsMounts() {
 		tmpfsMounts[m.Destination] = true
 	}
+	foundIntrospection := false
 	for _, m := range c.MountPoints {
 		if tmpfsMounts[m.Destination] {
+			continue
+		}
+		if m.Type == mounttypes.TypeIntrospection {
+			if foundIntrospection {
+				return nil, fmt.Errorf("too many introspection mounts: %+v", m)
+			}
+			if m.RW {
+				return nil, fmt.Errorf("introspection mount must be read-only: %+v", m)
+			}
+			if err := daemon.updateIntrospection(c, introspectionOptions{}); err != nil {
+				return nil, err
+			}
+			mnt := container.Mount{
+				Source:      c.IntrospectionDir(),
+				Destination: m.Destination,
+				Writable:    false,
+			}
+			mounts = append(mounts, mnt)
+			foundIntrospection = true
 			continue
 		}
 		if err := daemon.lazyInitializeVolume(c.ID, m); err != nil {

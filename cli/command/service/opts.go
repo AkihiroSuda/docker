@@ -197,6 +197,10 @@ func (m *MountOpt) Set(value string) error {
 		switch key {
 		case "type":
 			mount.Type = mounttypes.Type(strings.ToLower(value))
+			if mount.Type == mounttypes.TypeIntrospection {
+				// default
+				mount.ReadOnly = true
+			}
 		case "source", "src":
 			mount.Source = value
 		case "target", "dst", "destination":
@@ -205,6 +209,9 @@ func (m *MountOpt) Set(value string) error {
 			mount.ReadOnly, err = strconv.ParseBool(value)
 			if err != nil {
 				return fmt.Errorf("invalid value for %s: %s", key, value)
+			}
+			if mount.Type == mounttypes.TypeIntrospection && !mount.ReadOnly {
+				return fmt.Errorf("%s cannot be %s for introspection", key, value)
 			}
 		case "bind-propagation":
 			bindOptions().Propagation = mounttypes.Propagation(strings.ToLower(value))
