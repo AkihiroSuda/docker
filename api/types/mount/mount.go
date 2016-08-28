@@ -15,6 +15,8 @@ const (
 	TypeVolume Type = "volume"
 	// TypeTmpfs is the type for mounting tmpfs
 	TypeTmpfs Type = "tmpfs"
+	// TypeIntrospection is the type for introspection
+	TypeIntrospection Type = "introspection"
 )
 
 // Mount represents a mount (volume).

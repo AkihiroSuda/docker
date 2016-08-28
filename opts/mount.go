@@ -61,6 +61,8 @@ func (m *MountOpt) Set(value string) error {
 		}
 	}
 
+	writableExplicit := false
+
 	mount.Type = mounttypes.TypeVolume // default to volume mounts
 	// Set writable as the default
 	for _, field := range fields {
@@ -95,6 +97,9 @@ func (m *MountOpt) Set(value string) error {
 			if err != nil {
 				return fmt.Errorf("invalid value for %s: %s", key, value)
 			}
+			if !mount.ReadOnly {
+				writableExplicit = true
+			}
 		case "consistency":
 			mount.Consistency = mounttypes.Consistency(strings.ToLower(value))
 		case "bind-propagation":
@@ -128,6 +133,13 @@ func (m *MountOpt) Set(value string) error {
 		default:
 			return fmt.Errorf("unexpected key '%s' in '%s'", key, field)
 		}
+	}
+
+	if mount.Type == mounttypes.TypeIntrospection {
+		if writableExplicit {
+			return fmt.Errorf("cannot set readonly=false explicitly for mount type '%s'", mount.Type)
+		}
+		mount.ReadOnly = true
 	}
 
 	if mount.Type == "" {
