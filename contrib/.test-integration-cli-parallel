@@ -1,0 +1,19 @@
+#!/bin/bash
+# ARG1: job number (1..N)
+# ARG2: regexp for test case (e.g. TestRunEchoStdout)
+set -e
+echo "ARGS: $@"
+if [ -z $1 ]; then
+    echo "job number not set"
+    false
+fi
+if [ -z $2 ]; then
+    echo "test regexp not set"
+    false
+fi
+set -x
+mkdir -p bundles-parallel/$1
+# TODO: dedup binaries
+cp -r bundles bundles-parallel/$1
+$(BINDDIR="bundles-parallel/$1/bundles" make --silent echo-docker-run) sh -c "ln -s bundles-parallel/$1/bundles bundles ; KEEPBUNDLE=1 DOCKER_INTEGRATION_TESTS_VERIFIED=1 TESTFLAGS=\"-check.f $2\" hack/make.sh test-integration-cli"
+set +x
