@@ -80,6 +80,12 @@ type ScopedVolume interface {
 	Volume
 }
 
+// Tmpfs is used for tmpfs
+type Tmpfs struct {
+	// RawOptions is the raw data passed to the OS-specific mount syscall
+	RawOptions string `json:"-"`
+}
+
 // MountPoint is the intersection point between a volume and a container. It
 // specifies which volume is to be used and where inside a container it should
 // be mounted.
@@ -104,8 +110,9 @@ type MountPoint struct {
 	CopyData bool `json:"-"`
 	// ID is the opaque ID used to pass to the volume driver.
 	// This should be set by calls to `Mount` and unset by calls to `Unmount`
-	ID   string `json:",omitempty"`
-	Spec mounttypes.Mount
+	ID    string `json:",omitempty"`
+	Tmpfs *Tmpfs `json:"-"`
+	Spec  mounttypes.Mount
 }
 
 // Setup sets up a mount point by either mounting the volume if it is
@@ -289,6 +296,14 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 			if len(cfg.BindOptions.Propagation) > 0 {
 				mp.Propagation = cfg.BindOptions.Propagation
 			}
+		}
+	case mounttypes.TypeTmpfs:
+		rawOptions, err := convertTmpfsOptions(cfg.TmpfsOptions)
+		if err != nil {
+			return nil, err
+		}
+		mp.Tmpfs = &Tmpfs{
+			RawOptions: rawOptions,
 		}
 	}
 	return mp, nil

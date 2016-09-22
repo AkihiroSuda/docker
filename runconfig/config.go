@@ -47,7 +47,7 @@ func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 		}
 
 		// Now validate all the volumes and binds
-		if err := validateVolumesAndBindSettings(w.Config, hc); err != nil {
+		if err := validateMountSettings(w.Config, hc); err != nil {
 			return nil, nil, nil, err
 		}
 	}
@@ -71,9 +71,9 @@ func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 	return w.Config, hc, w.NetworkingConfig, nil
 }
 
-// validateVolumesAndBindSettings validates each of the volumes and bind settings
+// validateMountSettings validates each of the volumes and bind settings
 // passed by the caller to ensure they are valid.
-func validateVolumesAndBindSettings(c *container.Config, hc *container.HostConfig) error {
+func validateMountSettings(c *container.Config, hc *container.HostConfig) error {
 	if len(hc.Mounts) > 0 {
 		if len(hc.Binds) > 0 {
 			return conflictError(fmt.Errorf("must not specify both Binds and Mounts"))
@@ -85,6 +85,9 @@ func validateVolumesAndBindSettings(c *container.Config, hc *container.HostConfi
 
 		if len(hc.VolumeDriver) > 0 {
 			return conflictError(fmt.Errorf("must not specify both VolumeDriver and Mounts"))
+		}
+		if len(hc.Tmpfs) > 0 {
+			return conflictError(fmt.Errorf("must not specify both Tmpfs and Mounts"))
 		}
 	}
 

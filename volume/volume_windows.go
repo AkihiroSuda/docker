@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	mounttypes "github.com/docker/docker/api/types/mount"
 )
 
 // read-write modes
@@ -198,4 +200,10 @@ func validateStat(fi os.FileInfo) error {
 		return fmt.Errorf("source path must be a directory")
 	}
 	return nil
+}
+
+// convertTmpfsOptions converts *mounttypes.TmpfsOptions to the raw option string
+// for mount(2).
+func convertTmpfsOptions(opt *mounttypes.TmpfsOptions) (string, error) {
+	return "", fmt.Errorf("Windows does not support tmpfs")
 }
