@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types/mount"
+	pkgmount "github.com/docker/docker/pkg/mount"
 )
 
 var errBindNotExist = errors.New("bind source path does not exist")
@@ -86,6 +87,22 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 				}
 				return &errMountConfig{mnt, err}
 			}
+		}
+	case mount.TypeTmpfs:
+		if len(mnt.Source) != 0 {
+			return &errMountConfig{mnt, fmt.Errorf("must not set Source")}
+		}
+		rawOpts, err := rawTmpfsOptions(mnt.TmpfsOptions)
+		if err != nil {
+			return &errMountConfig{mnt, err}
+		}
+		flags, _, err := pkgmount.ParseTmpfsOptions(rawOpts)
+		if err != nil {
+			return &errMountConfig{mnt, err}
+		}
+		rawOptsContainsReadOnly := flags&pkgmount.RDONLY == pkgmount.RDONLY
+		if mnt.ReadOnly != rawOptsContainsReadOnly {
+			return &errMountConfig{mnt, fmt.Errorf("inconsistent ReadOnly mode")}
 		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}

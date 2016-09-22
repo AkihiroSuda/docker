@@ -1,24 +1,30 @@
 package mount
 
+import (
+	"os"
+)
+
 // Type represents the type of a mount.
 type Type string
 
+// Type constants
 const (
-	// TypeBind BIND
-	TypeBind Type = "bind"
-	// TypeVolume VOLUME
+	TypeBind   Type = "bind"
 	TypeVolume Type = "volume"
+	TypeTmpfs  Type = "tmpfs"
 )
 
 // Mount represents a mount (volume).
 type Mount struct {
-	Type     Type   `json:",omitempty"`
+	Type Type `json:",omitempty"`
+	// Source is not supported in TMPFS (must be an empty value)
 	Source   string `json:",omitempty"`
 	Target   string `json:",omitempty"`
 	ReadOnly bool   `json:",omitempty"`
 
 	BindOptions   *BindOptions   `json:",omitempty"`
 	VolumeOptions *VolumeOptions `json:",omitempty"`
+	TmpfsOptions  *TmpfsOptions  `json:",omitempty"`
 }
 
 // Propagation represents the propagation of a mount.
@@ -55,4 +61,29 @@ type VolumeOptions struct {
 type Driver struct {
 	Name    string            `json:",omitempty"`
 	Options map[string]string `json:",omitempty"`
+}
+
+// TmpfsOptions defines options specific to mounts of type "tmpfs".
+type TmpfsOptions struct {
+	// Size sets the size of the tmpfs, in bytes.
+	//
+	// This will be converted to an operating system specific value
+	// depending on the host. For example, on linux, it will be convered to
+	// use a 'k', 'm' or 'g' syntax. BSD, though not widely supported with
+	// docker, uses a straight byte value.
+	//
+	// Percentages are not supported.
+	SizeBytes int64
+	// Mode of the tmpfs upon creation
+	Mode os.FileMode
+
+	// RawOptions is the raw string passed to mount(2).
+	// e.g. "rw,noexec,nosuid,size=65536k"
+	//
+	// RawOptions is exclusive to other TmpfsOptions fields.
+	// If RawOptions has a non-empty value, other fields must have empty values.
+	//
+	// RawOptions can contain "ro" or "rw" but needs to be consistent with
+	// Mount.ReadOnly
+	RawOptions string `json:",omitempty"`
 }

@@ -12,6 +12,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -133,8 +134,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		// #10618
-		_, tmpfsExists := hostConfig.Tmpfs[bind.Destination]
-		if binds[bind.Destination] || tmpfsExists {
+		if binds[bind.Destination] {
 			return fmt.Errorf("Duplicate mount point '%s'", bind.Destination)
 		}
 
@@ -197,13 +197,39 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			}
 		}
 
-		binds[mp.Destination] = true
+		if mp.Type != mounttypes.TypeTmpfs {
+			binds[mp.Destination] = true
+		}
+		mountPoints[mp.Destination] = mp
+	}
+
+	// 4. Set up tmpfs
+	for dest, data := range hostConfig.Tmpfs {
+		flags, _, err := mount.ParseTmpfsOptions(data)
+		if err != nil {
+			return dockererrors.NewBadRequestError(err)
+		}
+		spec := mounttypes.Mount{
+			Type:     mounttypes.TypeTmpfs,
+			Target:   dest,
+			ReadOnly: flags&mount.RDONLY == mount.RDONLY,
+			TmpfsOptions: &mounttypes.TmpfsOptions{
+				RawOptions: data,
+			},
+		}
+		mp, err := volume.ParseMountSpec(spec)
+		if err != nil {
+			return dockererrors.NewBadRequestError(err)
+		}
+		if _, ok := mountPoints[mp.Destination]; ok {
+			return fmt.Errorf("Duplicate mount point '%s'", dest)
+		}
 		mountPoints[mp.Destination] = mp
 	}
 
 	container.Lock()
 
-	// 4. Cleanup old volumes that are about to be reassigned.
+	// 5. Cleanup old volumes that are about to be reassigned.
 	for _, m := range mountPoints {
 		if m.BackwardsCompatible() {
 			if mp, exists := container.MountPoints[m.Destination]; exists && mp.Volume != nil {
