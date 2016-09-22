@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/api/types/mount"
 )
@@ -86,6 +87,19 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 				}
 				return &errMountConfig{mnt, err}
 			}
+		}
+	case mount.TypeTmpfs:
+		if len(mnt.Source) != 0 {
+			return &errMountConfig{mnt, fmt.Errorf("must not set Source")}
+		}
+		rawOptionContainsReadOnly := false
+		if mnt.TmpfsOptions != nil {
+			s := mnt.TmpfsOptions.RawOptions
+			rawOptionContainsReadOnly = (s == "ro" || strings.HasSuffix(s, ",ro") ||
+				strings.Contains(s, "ro,"))
+		}
+		if mnt.ReadOnly != rawOptionContainsReadOnly {
+			return &errMountConfig{mnt, fmt.Errorf("inconsistent ReadOnly mode")}
 		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}

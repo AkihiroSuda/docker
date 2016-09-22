@@ -1547,6 +1547,12 @@ func (s *DockerSuite) TestContainersApiCreateMountsValidation(c *check.C) {
 		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume"}}}}, http.StatusBadRequest, "Target must not be empty"},
 		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume", Source: "hello", Target: destPath}}}}, http.StatusCreated, ""},
 		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume", Source: "hello2", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: "local"}}}}}}, http.StatusCreated, ""},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "tmpfs", Target: destPath}}}}, http.StatusCreated, ""},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "tmpfs", Target: destPath, TmpfsOptions: &mounttypes.TmpfsOptions{RawOptions: "rw,noexec,nosuid,size=65536k"}}}}}, http.StatusCreated, ""},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "tmpfs", Source: "/shouldnotbespecified", Target: destPath}}}}, http.StatusBadRequest, "must not set Source"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "tmpfs", ReadOnly: true, Target: destPath, TmpfsOptions: &mounttypes.TmpfsOptions{RawOptions: "ro"}}}}}, http.StatusCreated, ""},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "tmpfs", ReadOnly: true, Target: destPath}}}}, http.StatusBadRequest, "inconsistent ReadOnly mode"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "tmpfs", ReadOnly: false, Target: destPath, TmpfsOptions: &mounttypes.TmpfsOptions{RawOptions: "ro"}}}}}, http.StatusBadRequest, "inconsistent ReadOnly mode"},
 	}
 
 	if SameHostDaemon.Condition() {
@@ -1577,7 +1583,7 @@ func (s *DockerSuite) TestContainersApiCreateMountsValidation(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestContainerApiCreateMountsBindRead(c *check.C) {
+func (s *DockerSuite) TestContainersApiCreateMountsBindRead(c *check.C) {
 	testRequires(c, NotUserNamespace, SameHostDaemon)
 	// also with data in the host side
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
@@ -1727,6 +1733,51 @@ func (s *DockerSuite) TestContainersApiCreateMountsCreate(c *check.C) {
 			// This should be removed automatically when we removed the container
 			out, _, err := dockerCmdWithError("volume", "inspect", mps[0].Name)
 			c.Assert(err, checker.NotNil, check.Commentf(out))
+		}
+	}
+}
+
+func (s *DockerSuite) TestContainersApiCreateMountsTmpfs(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	type testCase struct {
+		cfg             map[string]interface{}
+		expectedOptions []string
+	}
+	target := "/foo"
+	cases := []testCase{
+		{map[string]interface{}{
+			"Type":   "tmpfs",
+			"Target": target},
+			[]string{"rw", "nosuid", "nodev", "noexec", "relatime"}},
+		{map[string]interface{}{
+			"Type":   "tmpfs",
+			"Target": target,
+			"TmpfsOptions": map[string]interface{}{
+				"RawOptions": "rw,size=4096k,noexec"}},
+			[]string{"rw", "nosuid", "nodev", "noexec", "relatime", "size=4096k"}},
+		{map[string]interface{}{
+			"Type":     "tmpfs",
+			"Target":   target,
+			"ReadOnly": true,
+			"TmpfsOptions": map[string]interface{}{
+				"RawOptions": "ro"}},
+			[]string{"ro", "nosuid", "nodev", "noexec", "relatime"}},
+	}
+
+	for i, x := range cases {
+		cName := fmt.Sprintf("test-tmpfs-%d", i)
+		data := map[string]interface{}{
+			"Image": "busybox",
+			"Cmd": []string{"/bin/sh", "-c",
+				fmt.Sprintf("mount | grep 'tmpfs on %s'", target)},
+			"HostConfig": map[string]interface{}{"Mounts": []map[string]interface{}{x.cfg}},
+		}
+		status, resp, err := sockRequest("POST", "/containers/create?name="+cName, data)
+		c.Assert(err, checker.IsNil, check.Commentf(string(resp)))
+		c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(resp)))
+		out, _ := dockerCmd(c, "start", "-a", cName)
+		for _, option := range x.expectedOptions {
+			c.Assert(out, checker.Contains, option)
 		}
 	}
 }

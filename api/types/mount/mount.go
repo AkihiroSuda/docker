@@ -8,17 +8,21 @@ const (
 	TypeBind Type = "bind"
 	// TypeVolume VOLUME
 	TypeVolume Type = "volume"
+	// TypeTmpfs TMPFS
+	TypeTmpfs Type = "tmpfs"
 )
 
 // Mount represents a mount (volume).
 type Mount struct {
-	Type     Type   `json:",omitempty"`
+	Type Type `json:",omitempty"`
+	// Source is not supported in TMPFS (must be an empty value)
 	Source   string `json:",omitempty"`
 	Target   string `json:",omitempty"`
 	ReadOnly bool   `json:",omitempty"`
 
 	BindOptions   *BindOptions   `json:",omitempty"`
 	VolumeOptions *VolumeOptions `json:",omitempty"`
+	TmpfsOptions  *TmpfsOptions  `json:",omitempty"`
 }
 
 // Propagation represents the propagation of a mount.
@@ -55,4 +59,13 @@ type VolumeOptions struct {
 type Driver struct {
 	Name    string            `json:",omitempty"`
 	Options map[string]string `json:",omitempty"`
+}
+
+// TmpfsOptions defines options specific to mounts of type "tmpfs".
+type TmpfsOptions struct {
+	// RawOptions is the raw string passed to mount(2).
+	// e.g. "rw,noexec,nosuid,size=65536k"
+	// RawOptions can contain "ro" or "rw" but needs to be consistent with
+	// Mount.ReadOnly
+	RawOptions string `json:",omitempty"`
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
@@ -414,6 +415,19 @@ func (container *Container) TmpfsMounts() []Mount {
 			Destination: dest,
 			Data:        data,
 		})
+	}
+	for _, mnt := range container.HostConfig.Mounts {
+		if mnt.Type == mounttypes.TypeTmpfs {
+			data := ""
+			if mnt.TmpfsOptions != nil {
+				data = mnt.TmpfsOptions.RawOptions
+			}
+			mounts = append(mounts, Mount{
+				Source:      "tmpfs",
+				Destination: mnt.Target,
+				Data:        data,
+			})
+		}
 	}
 	return mounts
 }
