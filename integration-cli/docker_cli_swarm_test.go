@@ -343,7 +343,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceWithIntrospectionVolume(c *check.C) {
 	mountpoint := "/foo"
 	out, err := d.Cmd("service", "create", "--name", name,
 		"--replicas", strconv.Itoa(replicas),
-		"--mount", "type=volume,src=docker_introspection,dst="+mountpoint,
+		"--mount", "type=introspection,dst="+mountpoint,
 		"busybox", "top")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")

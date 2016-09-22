@@ -8,6 +8,8 @@ const (
 	TypeBind Type = "bind"
 	// TypeVolume VOLUME
 	TypeVolume Type = "volume"
+	// TypeIntrospection INTROSPECTION
+	TypeIntrospection Type = "introspection"
 )
 
 // Mount represents a mount (volume).
@@ -55,4 +57,8 @@ type VolumeOptions struct {
 type Driver struct {
 	Name    string            `json:",omitempty"`
 	Options map[string]string `json:",omitempty"`
+}
+
+// IntrospectionOptions defines options specific to mounts of type "introspection".
+type IntrospectionOptions struct {
 }

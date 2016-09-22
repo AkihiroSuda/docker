@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/mount"
 )
 
@@ -86,6 +87,13 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 				}
 				return &errMountConfig{mnt, err}
 			}
+		}
+	case mount.TypeIntrospection:
+		if len(mnt.Source) == 0 {
+			return &errMountConfig{mnt, errMissingField("Source")}
+		}
+		if !mnt.ReadOnly {
+			logrus.Warn("ReadOnly is forced for mnt %v", mnt)
 		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}

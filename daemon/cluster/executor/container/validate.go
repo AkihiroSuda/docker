@@ -35,6 +35,10 @@ func validateMounts(mounts []api.Mount) error {
 			if mount.Source != "" {
 				return fmt.Errorf("invalid tmpfs source, source must be empty")
 			}
+		case api.MountTypeIntrospection:
+			if mount.Source != "" {
+				return fmt.Errorf("invalid introspection source, source must be empty")
+			}			
 		default:
 			return fmt.Errorf("invalid mount type: %s", mount.Type)
 		}

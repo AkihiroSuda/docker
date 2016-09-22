@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	dockererrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -142,39 +143,38 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		if bind.Type == mounttypes.TypeVolume {
-			if bind.Name == introspection.BaseVolumeName {
-				v, err := daemon.volumes.Get(bind.Name)
-				if err != nil {
-					return err
-				}
-				base, ok := store.UnwrapVolume(v).(*introspection.Base)
-				if !ok {
-					return fmt.Errorf("%s is not *introspection.Base: %#v",
-						bind.Name, v)
-				}
-				v, err = base.ContainerVolume(container.ID)
-				if err != nil {
-					return err
-				}
-				bind.Volume = v
-				bind.Source = v.Path()
-				bind.RW = false
-				bind.Driver = v.DriverName()
-				bind.CopyData = false
-			} else {
-				// create the volume
-				v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil, nil)
-				if err != nil {
-					return err
-				}
-				bind.Volume = v
-				bind.Source = v.Path()
-				// bind.Name is an already existing volume, we need to use that here
-				bind.Driver = v.DriverName()
-				if bind.Driver == volume.DefaultDriverName {
-					setBindModeIfNull(bind)
-				}
+			// create the volume
+			v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil, nil)
+			if err != nil {
+				return err
 			}
+			bind.Volume = v
+			bind.Source = v.Path()
+			// bind.Name is an already existing volume, we need to use that here
+			bind.Driver = v.DriverName()
+			if bind.Driver == volume.DefaultDriverName {
+				setBindModeIfNull(bind)
+			}
+		} else if bind.Type == mounttypes.TypeIntrospection {
+			logrus.Debugf("*** FOUND INTROSPECTION *** %+v", bind)
+			v, err := daemon.volumes.Get(introspection.BaseVolumeName)
+			if err != nil {
+				return err
+			}
+			base, ok := store.UnwrapVolume(v).(*introspection.Base)
+			if !ok {
+				return fmt.Errorf("%s is not *introspection.Base: %#v",
+					bind.Name, v)
+			}
+			v, err = base.ContainerVolume(container.ID)
+			if err != nil {
+				return err
+			}
+			bind.Volume = v
+			bind.Source = introspection.BaseVolumeName
+			bind.RW = false
+			bind.Driver = v.DriverName()
+			bind.CopyData = false
 		}
 
 		binds[bind.Destination] = true
