@@ -8,7 +8,9 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	"github.com/docker/libnetwork"
 )
 
 // ContainersPrune removes unused containers
@@ -149,4 +151,40 @@ func (daemon *Daemon) ImagesPrune(config *types.ImagesPruneConfig) (*types.Image
 	}
 
 	return rep, nil
+}
+
+func countValidEndpoints(nw libnetwork.Network) int {
+	endpoints := 0
+	for _, epl := range nw.Endpoints() {
+		if epl.Info() != nil {
+			endpoints++
+		}
+	}
+	return endpoints
+}
+
+// localNetworksPrune removes unused local networks
+func (daemon *Daemon) localNetworksPrune(config *types.NetworksPruneConfig) (*types.NetworksPruneReport, error) {
+	rep := &types.NetworksPruneReport{}
+	var err error
+	l := func(nw libnetwork.Network) bool {
+		nwID := nw.ID()
+		predefined := runconfig.IsPreDefinedNetwork(nw.Name())
+		if !predefined && countValidEndpoints(nw) == 0 {
+			if err = daemon.DeleteNetwork(nwID); err != nil {
+				// When the function returns true, the walk will stop.
+				return true
+			}
+			rep.NetworksDeleted = append(rep.NetworksDeleted, nwID)
+		}
+		return false
+	}
+	daemon.netController.WalkNetworks(l)
+	return rep, err
+}
+
+// NetworksPrune removes unused networks
+// TODO: support for cluster networks
+func (daemon *Daemon) NetworksPrune(config *types.NetworksPruneConfig) (*types.NetworksPruneReport, error) {
+	return daemon.localNetworksPrune(config)
 }
