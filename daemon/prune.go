@@ -8,7 +8,9 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	"github.com/docker/libnetwork"
 )
 
 // ContainersPrune removes unused containers
@@ -149,4 +151,77 @@ func (daemon *Daemon) ImagesPrune(config *types.ImagesPruneConfig) (*types.Image
 	}
 
 	return rep, nil
+}
+
+func countValidEndpoints(nw libnetwork.Network) int {
+	endpoints := 0
+	for _, epl := range nw.Endpoints() {
+		if epl.Info() != nil {
+			endpoints++
+		}
+	}
+	return endpoints
+}
+
+// localNetworksPrune removes unused local networks
+func (daemon *Daemon) localNetworksPrune(config *types.NetworksPruneConfig) (*types.NetworksPruneReport, error) {
+	rep := &types.NetworksPruneReport{}
+	var err error
+	l := func(nw libnetwork.Network) bool {
+		nwID := nw.ID()
+		predefined := runconfig.IsPreDefinedNetwork(nw.Name())
+		if !predefined && countValidEndpoints(nw) == 0 {
+			if err = daemon.DeleteNetwork(nwID); err != nil {
+				// When the function returns true, the walk will stop.
+				return true
+			}
+			rep.NetworksDeleted = append(rep.NetworksDeleted, nwID)
+		}
+		return false
+	}
+	daemon.netController.WalkNetworks(l)
+	return rep, err
+}
+
+// clusterNetworksPrune removes unused cluster networks
+func (daemon *Daemon) clusterNetworksPrune(config *types.NetworksPruneConfig) (*types.NetworksPruneReport, error) {
+	rep := &types.NetworksPruneReport{}
+	cluster := daemon.GetCluster()
+	networks, err := cluster.GetNetworks()
+	if err != nil {
+		return rep, err
+	}
+	// xnw lacks Containers information
+	for _, xnw := range networks {
+		if xnw.Name == "ingress" {
+			continue
+		}
+		nw, err := daemon.FindNetwork(xnw.ID)
+		if err != nil {
+			return rep, err
+		}
+		// even NW lacks Containers information running on other hosts.
+		// BUGBUGBUG
+		nwID := nw.ID()
+		if countValidEndpoints(nw) == 0 {
+			if err = cluster.RemoveNetwork(nwID); err != nil {
+				return rep, err
+			}
+			rep.NetworksDeleted = append(rep.NetworksDeleted, nwID)
+		}
+	}
+	return rep, nil
+}
+
+// NetworksPrune removes unused networks
+func (daemon *Daemon) NetworksPrune(config *types.NetworksPruneConfig) (*types.NetworksPruneReport, error) {
+	rep, err := daemon.clusterNetworksPrune(config)
+	if err != nil {
+		return rep, err
+	}
+	localRep, err := daemon.localNetworksPrune(config)
+	if localRep != nil {
+		rep.NetworksDeleted = append(rep.NetworksDeleted, localRep.NetworksDeleted...)
+	}
+	return rep, err
 }

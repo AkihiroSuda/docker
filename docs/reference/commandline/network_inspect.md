@@ -117,4 +117,5 @@ $ docker network inspect simple-network
 * [network create](network_create.md)
 * [network ls](network_ls.md)
 * [network rm](network_rm.md)
+* [network prune](network_prune.md)
 * [Understand Docker container networks](../../userguide/networking/index.md)
