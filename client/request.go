@@ -188,9 +188,11 @@ func (cli *Client) newRequest(method, path string, query url.Values, body io.Rea
 
 	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
 	// then the user can't change OUR headers
+	cli.customHTTPHeadersMu.Lock()
 	for k, v := range cli.customHTTPHeaders {
 		req.Header.Set(k, v)
 	}
+	cli.customHTTPHeadersMu.Unlock()
 
 	if headers != nil {
 		for k, v := range headers {

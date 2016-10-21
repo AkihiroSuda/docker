@@ -52,6 +52,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -78,7 +79,8 @@ type Client struct {
 	// version of the server to talk to.
 	version string
 	// custom http headers configured by users.
-	customHTTPHeaders map[string]string
+	customHTTPHeaders   map[string]string
+	customHTTPHeadersMu sync.Mutex
 }
 
 // NewEnvClient initializes a new API client based on environment variables.
@@ -219,4 +221,24 @@ func ParseHost(host string) (string, string, string, error) {
 		basePath = parsed.Path
 	}
 	return proto, addr, basePath, nil
+}
+
+// CustomHTTPHeaders returns the custom http headers associated with this
+// instance of the Client.
+func (cli *Client) CustomHTTPHeaders() map[string]string {
+	m := make(map[string]string)
+	cli.customHTTPHeadersMu.Lock()
+	for k, v := range cli.customHTTPHeaders {
+		m[k] = v
+	}
+	cli.customHTTPHeadersMu.Unlock()
+	return m
+}
+
+// UpdateCustomHTTPHeaders updates the custom http headers associated with this
+// instance of the Client.
+func (cli *Client) UpdateCustomHTTPHeaders(headers map[string]string) {
+	cli.customHTTPHeadersMu.Lock()
+	cli.customHTTPHeaders = headers
+	cli.customHTTPHeadersMu.Unlock()
 }
