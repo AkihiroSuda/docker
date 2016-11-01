@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -79,8 +80,16 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	if _, err := n.clusterProvider.GetNetwork(create.Name); err == nil {
-		return libnetwork.NetworkNameError(create.Name)
+	if nw, err := n.clusterProvider.GetNetwork(create.Name); err == nil {
+		// GetNetwork can return nw if:
+		//  1. nw.Name == create.Name
+		//  2. nw.ID == create.Name
+		//  3. nw.ID starts with create.Name
+		//
+		// we do not need to raise an error for the case 3.
+		if !strings.HasPrefix(nw.ID, create.Name) {
+			return libnetwork.NetworkNameError(create.Name)
+		}
 	}
 
 	nw, err := n.backend.CreateNetwork(create)
