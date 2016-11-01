@@ -79,10 +79,13 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	if _, err := n.clusterProvider.GetNetwork(create.Name); err == nil {
-		return libnetwork.NetworkNameError(create.Name)
-	}
-
+	// WIP - DO NOT MERGE
+	// TODO: we MUST return a NetworkNameError for:
+	//    $ docker service create -d overlay foo # should succeed
+	//    $ docker service create -d bridge foo   # should return an err
+	// So we should call clusterProvider.CreateNetwork before
+	// calling backend.CreateNetwork, for swarm-scoped network.
+	// But how to detect the scope?
 	nw, err := n.backend.CreateNetwork(create)
 	if err != nil {
 		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
@@ -90,6 +93,11 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		}
 		id, err := n.clusterProvider.CreateNetwork(create)
 		if err != nil {
+			// FIXME: typed error for RPC
+			if err.Error() == "rpc error: code = 2 desc = name conflicts with an existing object" {
+				// convert the error string for compatibility
+				return libnetwork.NetworkNameError(create.Name)
+			}
 			return err
 		}
 		nw = &types.NetworkCreateResponse{ID: id}

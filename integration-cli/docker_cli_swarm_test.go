@@ -608,3 +608,21 @@ func (s *DockerSwarmSuite) TestSwarmServiceEnvFile(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "[VAR1=C VAR2]")
 }
+
+// Test case for #27866
+func (s *DockerSwarmSuite) TestSwarmNetworkCreateIssue27866(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+	out, err := d.Cmd("network", "inspect", "-f", "{{.Id}}", "ingress")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	ingressID := strings.TrimSpace(out)
+	c.Assert(ingressID, checker.Not(checker.Equals), "")
+
+	// create a network of which name is the prefix of the ID of an overlay network
+	// (ingressID in this case)
+	newNetName := ingressID[0:2]
+	out, err = d.Cmd("network", "create", "--driver", "overlay", newNetName)
+	// In #27866, it was failing because of "network with name %s already exists"
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	out, err = d.Cmd("network", "rm", newNetName)
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+}
