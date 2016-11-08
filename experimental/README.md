@@ -9,12 +9,35 @@ issues associated with it. If necessary, links are provided to additional
 documentation on an issue.  As an active Docker user and community member,
 please feel free to provide any feedback on these features you wish.
 
-## Install Docker experimental
+## Use Docker experimental
 
-Unlike the regular Docker binary, the experimental channels is built and
-updated nightly on https://experimental.docker.com. From one day to the
-next, new features may appear, while existing experimental features may be
-refined or entirely removed.
+Experimental features are now included in the standard Docker binaries as of
+version 1.13.0.
+For enabling experimental features, you need to start the Docker daemon with
+`--experimental` flag.
+You can also enable the daemon flag via `/etc/docker/daemon.json`. e.g.
+
+        {
+            "experimental": true
+        }
+
+Then make sure the experimental flag is enabled:
+
+        $ docker version -f '{{.Server.Experimental}}'
+        true
+
+## Install from `experimental.docker.com`
+
+If you install Docker from `experimental.docker.com`, the experimental features
+are enabled by default.
+The experimental package available at `experimental.docker.com` is almost
+identical to the standard Docker package, but it contains `daemon.json` for
+enabling the experimental features by default.
+
+Starting with version 1.13.0, the experimental package is released on the same
+schedule as the standard package.
+From one release to the next, new features may appear, while existing
+experimental features may be refined or entirely removed.
 
 1. Verify that you have `curl` installed.
 
@@ -45,29 +68,11 @@ refined or entirely removed.
 
     This command downloads a test image and runs it in a container.
 
-### Get the Linux binary
-To download the latest experimental `docker` binary for Linux,
-use the following URLs:
+4. And verify the experimental flag is enabled:
 
-    https://experimental.docker.com/builds/Linux/i386/docker-latest.tgz
+        $ docker version -f '{{.Server.Experimental}}'
+        true
 
-    https://experimental.docker.com/builds/Linux/x86_64/docker-latest.tgz
-
-After downloading the appropriate binary, you can follow the instructions
-[here](https://docs.docker.com/engine/installation/binaries/#/get-the-docker-engine-binaries) to run the `docker` daemon.
-
-> **Note**
->
-> 1) You can get the MD5 and SHA256 hashes by appending .md5 and .sha256 to the URLs respectively
->
-> 2) You can get the compressed binaries by appending .tgz to the URLs
-
-### Build an experimental binary
-You can also build the experimental binary from the standard development environment by adding
-`DOCKER_EXPERIMENTAL=1` to the environment where you run `make` to build Docker binaries. For example,
-to build a Docker binary with the experimental features enabled:
-
-        $ DOCKER_EXPERIMENTAL=1 make binary
 
 ## Current experimental features
 
