@@ -1,0 +1,8 @@
+sudo: required
+
+services:
+  - docker
+
+script:
+# TODO: enable cache
+  - make test-integration-cli
