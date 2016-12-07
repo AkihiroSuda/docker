@@ -1,0 +1,19 @@
+# NOTE: file format can be changed in future
+# TODO: split DockerSuite into multiple suites, for simplifying this config.yaml
+# TODO: split integration-cli into multiple Go pkgs, for shorter compilation time
+
+tests:
+  - DockerSuite
+  - DockerRegistrySuite
+  - DockerSchema1RegistrySuite
+  - DockerRegistryAuthHtpasswdSuite
+  - DockerRegistryAuthTokenSuite
+  - DockerDaemonSuite
+  - DockerSwarmSuite
+  - DockerTrustSuite
+  - DockerAuthzV2Suite
+  - DockerAuthzSuite
+  - DockerExternalGraphdriverSuite
+  - DockerExternalVolumeSuite
+  - DockerNetworkSuite
+  - DockerHubPullSuite
