@@ -1,0 +1,13 @@
+# this .travis.yml is just for my local development,
+# and hence should not be included in the PR.
+# TODO: enable cache
+dist: trusty
+sudo: required
+
+script:
+  - curl -fsSL https://test.docker.com/ | sh
+  - echo eyJleHBlcmltZW50YWwiOiB0cnVlfQo= | base64 -d | sudo tee /etc/docker/daemon.json
+  - sudo service docker restart
+  - docker swarm init
+  - make build
+  - ./contrib/integration-cli-on-swarm/integration-cli-on-swarm.sh --replicas 5
