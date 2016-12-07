@@ -1,0 +1,13 @@
+# "docker-dev:integration-cli-worker-base" is automatically generated via integration-cli-on-swarm.sh
+FROM docker-dev:integration-cli-worker-base
+
+# Pre-build the IT binary here for faster worker execution
+# TODO: somehow make DOCKER_INCREMENTAL_BINARY effective here for faster compilation
+# NOTE: /usr/local/bin/docker is used for communication with the daemon via the bind-mounted API socket
+RUN hack/make.sh build-integration-test-binary dynbinary && cp -L  bundles/latest/dynbinary-client/docker /usr/local/bin
+
+ADD . /go/src/github.com/docker/docker/contrib/integration-cli-on-swarm/agent
+RUN go build  -o /worker github.com/docker/docker/contrib/integration-cli-on-swarm/agent
+
+# NOTE: WORKDIR is inherited from the base image
+ENTRYPOINT ["/worker"]
