@@ -1,0 +1,15 @@
+# this .travis.yml is just for my local development,
+# and hence should not be included in the ready-to-merge commit.
+# TODO: enable cache
+dist: trusty
+sudo: required
+
+script:
+  - sudo apt-get remove docker-engine
+  - curl -fsSL https://test.docker.com/ | sh
+  - echo eyJleHBlcmltZW50YWwiOiB0cnVlfQo= | base64 -d | sudo tee /etc/docker/daemon.json
+  - sudo service docker restart
+  - docker swarm init
+  - docker pull dockercore/docker:latest
+  - DOCKER_BUILD_ARGS="--cache-from dockercore/docker:latest" make build
+  - ./contrib/integration-cli-on-swarm/integration-cli-on-swarm.sh --replicas 5 --shuffle
