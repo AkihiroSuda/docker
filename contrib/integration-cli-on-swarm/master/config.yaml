@@ -1,0 +1,50 @@
+# NOTE: file format can be changed in future
+# TODO: split DockerSuite into multiple suites, for simplifying this config.yaml
+# TODO: split integration-cli into multiple Go pkgs, for shorter compilation time
+
+tests:
+  - DockerSuite.TestA
+  - DockerSuite.TestBridge
+  - DockerSuite.TestBuild[ABCD]
+  - DockerSuite.TestBuild[EFGH]
+  - DockerSuite.TestBuild[IJKL]
+  - DockerSuite.TestBuild[MNOP]
+  - DockerSuite.TestBuild[QRST]
+  - DockerSuite.TestBuild[UVWXYZ]
+  - DockerSuite.TestC
+  - DockerSuite.TestD
+  - DockerSuite.TestE
+  - DockerSuite.TestF
+  - DockerSuite.TestG
+  - DockerSuite.TestH
+  - DockerSuite.TestI
+  - DockerSuite.TestJ
+  - DockerSuite.TestK
+  - DockerSuite.TestL
+  - DockerSuite.TestM
+  - DockerSuite.TestN
+  - DockerSuite.TestO
+  - DockerSuite.TestP
+  - DockerSuite.TestQ
+  - DockerSuite.TestR
+  - DockerSuite.TestS
+  - DockerSuite.TestT
+  - DockerSuite.TestU
+  - DockerSuite.Test[VWXYZ]
+  - DockerRegistrySuite
+  - DockerSchema1RegistrySuite
+  - DockerRegistryAuthHtpasswdSuite
+  - DockerRegistryAuthTokenSuite
+  - DockerDaemonSuite.Test[ABCDEFGHIJKLMN]
+  - DockerDaemonSuite.Test[OPQRSTUVWXYZ]
+  - DockerSwarmSuite.Test[^S]
+  - DockerSwarmSuite.TestService
+  - DockerSwarmSuite.TestStack
+  - DockerSwarmSuite.TestSwarm
+  - DockerTrustSuite
+  - DockerAuthzV2Suite
+  - DockerAuthzSuite
+  - DockerExternalGraphdriverSuite
+  - DockerExternalVolumeSuite
+  - DockerNetworkSuite
+  - DockerHubPullSuite
