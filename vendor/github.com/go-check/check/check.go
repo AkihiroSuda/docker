@@ -530,7 +530,8 @@ type RunConf struct {
 	Output        io.Writer
 	Stream        bool
 	Verbose       bool
-	Filter        string
+	Filter        string   // For compatibility with older versions that lack Filters
+	Filters       []string // OR-match (empty slice matches any)
 	Benchmark     bool
 	BenchmarkTime time.Duration // Defaults to 1 second
 	BenchmarkMem  bool
@@ -570,14 +571,23 @@ func newSuiteRunner(suite interface{}, runConf *RunConf) *suiteRunner {
 		runner.benchTime = 1 * time.Second
 	}
 
-	var filterRegexp *regexp.Regexp
 	if conf.Filter != "" {
-		if regexp, err := regexp.Compile(conf.Filter); err != nil {
+		if len(conf.Filters) != 0 {
+			msg := "Filter and Filters cannot be both set"
+			runner.tracker.result.RunError = errors.New(msg)
+			return runner
+		}
+		conf.Filters = append(conf.Filters, conf.Filter)
+	}
+
+	var filterRegexps []*regexp.Regexp
+	for _, f := range conf.Filters {
+		if regexp, err := regexp.Compile(f); err != nil {
 			msg := "Bad filter expression: " + err.Error()
 			runner.tracker.result.RunError = errors.New(msg)
 			return runner
 		} else {
-			filterRegexp = regexp
+			filterRegexps = append(filterRegexps, regexp)
 		}
 	}
 
@@ -602,8 +612,15 @@ func newSuiteRunner(suite interface{}, runConf *RunConf) *suiteRunner {
 			if !strings.HasPrefix(method.Info.Name, prefix) {
 				continue
 			}
-			if filterRegexp == nil || method.matches(filterRegexp) {
+			if len(filterRegexps) == 0 {
 				runner.tests = append(runner.tests, method)
+			} else {
+				// filterRegexps is OR-match
+				for _, f := range filterRegexps {
+					if method.matches(f) {
+						runner.tests = append(runner.tests, method)
+					}
+				}
 			}
 		}
 	}

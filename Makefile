@@ -142,6 +142,11 @@ test-docker-py: build ## run the docker-py tests
 test-integration-cli: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh build-integration-test-binary dynbinary test-integration-cli
 
+test-integration-cli-on-swarm: ## run the integration tests in parall across a Swarm cluster
+# For ease of passing arguments (e.g. --replicas 3), the script is currently not started via Makefile
+	echo "Please use contrib/integration-cli-on-swarm/integration-cli-on-swarm.sh"
+	contrib/integration-cli-on-swarm/integration-cli-on-swarm.sh --help
+
 test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
 
@@ -169,3 +174,6 @@ swagger-docs: ## preview the API documentation
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.6.2
+
+echo-docker-image: ## echo DOCKER_IMAGE
+	@echo $(DOCKER_IMAGE)
