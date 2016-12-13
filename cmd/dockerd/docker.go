@@ -100,6 +100,9 @@ func main() {
 	// Set terminal emulation based on platform as required.
 	_, stdout, stderr := term.StdStreams()
 	logrus.SetOutput(stderr)
+	for _, e := range os.Environ() {
+		logrus.Debugf("DEBUG env %q", e)
+	}
 
 	cmd := newDaemonCommand()
 	cmd.SetOutput(stdout)
