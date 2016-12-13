@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/dockerversion"
 
 	"github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -101,6 +102,10 @@ func initGCP() {
 //
 // See https://developers.google.com/identity/protocols/application-default-credentials
 func New(ctx logger.Context) (logger.Logger, error) {
+	if dockerversion.IAmStatic == "true" {
+		// Not sure this is a feature deprecation... because it should have been broken since when it first appeared..
+		return nil, fmt.Errorf("Static binary does not support gcplogs. Please install a dynamic binary to use gcplogs or select a different logging driver")
+	}
 	initGCP()
 
 	var project string
