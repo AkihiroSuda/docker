@@ -10,8 +10,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/compute/metadata"
-	"google.golang.org/cloud/logging"
+	"cloud.google.com/go/compute/metadata"
+	"cloud.google.com/go/logging"
 )
 
 const (
