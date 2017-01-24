@@ -58,7 +58,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&serviceOpts.env, flagEnvAdd, "Add or update an environment variable")
 	flags.Var(newListOptsVar(), flagSecretRemove, "Remove a secret")
 	flags.Var(&serviceOpts.secrets, flagSecretAdd, "Add or update a secret on a service")
-	flags.Var(&serviceOpts.mounts, flagMountAdd, "Add or update a mount on a service")
+	flags.Var(&serviceOpts.volumes, flagMountAdd, "Add or update a mount on a service")
 	flags.Var(&serviceOpts.constraints, flagConstraintAdd, "Add or update a placement constraint")
 	flags.Var(&serviceOpts.endpoint.publishPorts, flagPublishAdd, "Add or update a published port")
 	flags.Var(&serviceOpts.groups, flagGroupAdd, "Add an additional supplementary user group to the container")
@@ -510,7 +510,11 @@ func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) error {
 	mountsByTarget := map[string]mounttypes.Mount{}
 
 	if flags.Changed(flagMountAdd) {
-		values := flags.Lookup(flagMountAdd).Value.(*opts.MountOpt).Value()
+		v := flags.Lookup(flagMountAdd).Value.(*opts.VolumeOpt)
+		values, err := mountsFromVolumeOpt(v)
+		if err != nil {
+			return err
+		}
 		for _, mount := range values {
 			if _, ok := mountsByTarget[mount.Target]; ok {
 				return fmt.Errorf("duplicate mount target")

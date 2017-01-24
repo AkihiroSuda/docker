@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
@@ -303,11 +304,12 @@ type serviceOptions struct {
 	user            string
 	groups          opts.ListOpts
 	tty             bool
-	mounts          opts.MountOpt
-	dns             opts.ListOpts
-	dnsSearch       opts.ListOpts
-	dnsOption       opts.ListOpts
-	hosts           opts.ListOpts
+	// Note: in service, volumes only supports long-syntax ones (aka mounts)
+	volumes   opts.VolumeOpt
+	dns       opts.ListOpts
+	dnsSearch opts.ListOpts
+	dnsOption opts.ListOpts
+	hosts     opts.ListOpts
 
 	resources resourceOptions
 	stopGrace DurationOpt
@@ -346,6 +348,20 @@ func newServiceOptions() *serviceOptions {
 	}
 }
 
+func mountsFromVolumeOpt(v *opts.VolumeOpt) ([]mounttypes.Mount, error) {
+	// FIXME: error is unfriendly to users
+	// FIXME: do we really need to prohibit short-syntax?
+	if len(v.ShortUnsplitValue()) != 0 {
+		return nil, fmt.Errorf("unsupported volumes (needs to be in long-syntax): %v",
+			v.ShortUnsplitValue())
+	}
+	if len(v.ShortSplitValue()) != 0 {
+		return nil, fmt.Errorf("unsupported volumes (needs to be in long-syntax): %v",
+			v.ShortSplitValue())
+	}
+	return v.LongValue(), nil
+}
+
 func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 	var service swarm.ServiceSpec
 
@@ -368,6 +384,11 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		currentEnv = append(currentEnv, env)
 	}
 
+	mounts, err := mountsFromVolumeOpt(&opts.volumes)
+	if err != nil {
+		return service, err
+	}
+
 	service = swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   opts.name,
@@ -384,7 +405,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				User:     opts.user,
 				Groups:   opts.groups.GetAll(),
 				TTY:      opts.tty,
-				Mounts:   opts.mounts.Value(),
+				Mounts:   mounts,
 				DNSConfig: &swarm.DNSConfig{
 					Nameservers: opts.dns.GetAll(),
 					Search:      opts.dnsSearch.GetAll(),
@@ -482,40 +503,43 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 }
 
 const (
-	flagConstraint            = "constraint"
-	flagConstraintRemove      = "constraint-rm"
-	flagConstraintAdd         = "constraint-add"
-	flagContainerLabel        = "container-label"
-	flagContainerLabelRemove  = "container-label-rm"
-	flagContainerLabelAdd     = "container-label-add"
-	flagDNS                   = "dns"
-	flagDNSRemove             = "dns-rm"
-	flagDNSAdd                = "dns-add"
-	flagDNSOption             = "dns-option"
-	flagDNSOptionRemove       = "dns-option-rm"
-	flagDNSOptionAdd          = "dns-option-add"
-	flagDNSSearch             = "dns-search"
-	flagDNSSearchRemove       = "dns-search-rm"
-	flagDNSSearchAdd          = "dns-search-add"
-	flagEndpointMode          = "endpoint-mode"
-	flagHost                  = "host"
-	flagHostAdd               = "host-add"
-	flagHostRemove            = "host-rm"
-	flagHostname              = "hostname"
-	flagEnv                   = "env"
-	flagEnvFile               = "env-file"
-	flagEnvRemove             = "env-rm"
-	flagEnvAdd                = "env-add"
-	flagGroup                 = "group"
-	flagGroupAdd              = "group-add"
-	flagGroupRemove           = "group-rm"
-	flagLabel                 = "label"
-	flagLabelRemove           = "label-rm"
-	flagLabelAdd              = "label-add"
-	flagLimitCPU              = "limit-cpu"
-	flagLimitMemory           = "limit-memory"
-	flagMode                  = "mode"
-	flagMount                 = "mount"
+	flagConstraint           = "constraint"
+	flagConstraintRemove     = "constraint-rm"
+	flagConstraintAdd        = "constraint-add"
+	flagContainerLabel       = "container-label"
+	flagContainerLabelRemove = "container-label-rm"
+	flagContainerLabelAdd    = "container-label-add"
+	flagDNS                  = "dns"
+	flagDNSRemove            = "dns-rm"
+	flagDNSAdd               = "dns-add"
+	flagDNSOption            = "dns-option"
+	flagDNSOptionRemove      = "dns-option-rm"
+	flagDNSOptionAdd         = "dns-option-add"
+	flagDNSSearch            = "dns-search"
+	flagDNSSearchRemove      = "dns-search-rm"
+	flagDNSSearchAdd         = "dns-search-add"
+	flagEndpointMode         = "endpoint-mode"
+	flagHost                 = "host"
+	flagHostAdd              = "host-add"
+	flagHostRemove           = "host-rm"
+	flagHostname             = "hostname"
+	flagEnv                  = "env"
+	flagEnvFile              = "env-file"
+	flagEnvRemove            = "env-rm"
+	flagEnvAdd               = "env-add"
+	flagGroup                = "group"
+	flagGroupAdd             = "group-add"
+	flagGroupRemove          = "group-rm"
+	flagLabel                = "label"
+	flagLabelRemove          = "label-rm"
+	flagLabelAdd             = "label-add"
+	flagLimitCPU             = "limit-cpu"
+	flagLimitMemory          = "limit-memory"
+	flagMode                 = "mode"
+	flagVolume               = "volume"
+	// mount is deprecated over volume in 1.14, but it still exists
+	flagMountDeprecated = "mount"
+	// TODO: deprecated mount-{add,rm} as well, probably
 	flagMountRemove           = "mount-rm"
 	flagMountAdd              = "mount-add"
 	flagName                  = "name"

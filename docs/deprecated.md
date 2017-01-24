@@ -20,6 +20,17 @@ The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
 
+### `--mount` for `docker service`
+
+**Deprecated In Release: v1.14.0**
+
+`--volume type=bind,...` and `--volume type=volume,...` replaces
+`--mount type=bind,...` and `--mount type=volume,...`.
+
+The long-syntax `--volume` can be also used for `docker run` as well.
+
+Refer to [#28527](https://github.com/docker/docker/pull/28527) for further
+information.
 
 ### Top-level network properties in NetworkSettings
 
@@ -40,7 +51,7 @@ docker 1.9, but kept around for backward compatibility.
 Refer to [#17538](https://github.com/docker/docker/pull/17538) for further
 information.
 
-## `filter` param for `/images/json` endpoint
+### `filter` param for `/images/json` endpoint
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
 **Target For Removal In Release: v1.16**
