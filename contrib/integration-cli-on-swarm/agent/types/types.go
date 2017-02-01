@@ -14,4 +14,5 @@ type Result struct {
 	ChunkID int `json:"chunk_id"`
 	// Code is the exit code
 	Code int `json:"code"`
+	RawLog string `json:"raw_log"`
 }

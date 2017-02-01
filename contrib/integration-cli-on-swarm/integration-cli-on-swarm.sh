@@ -1,73 +1,70 @@
 #!/bin/bash
 # integration-cli-on-swarm.sh: run the integration tests in parall across a Swarm cluster
 # Please refer to README.md for the usage.
+#
+# TODO(AkihiroSuda): rewrite in Go? (Maybe it would just result in increase of LOC?)
 set -e
 set -o pipefail
 
-errexit() {
-    echo "$1"
-    exit 1
-}
+# global constants
+stack="integration-cli-on-swarm"
+volume="integration-cli-on-swarm"
+master_image="integration-cli-master"
+compose_file="./contrib/integration-cli-on-swarm/docker-compose.yml"
 
 log(){
     echo -e "\e[104m\e[97m[IT on Swarm]\e[49m\e[39m $@"
 }
 
-zleep() {
-    sleep 3
+cleanup_stack() {
+    [ $# -eq 0 ]
+    log "Cleaning up stack $stack"
+    set -x
+    docker stack rm $stack
+    set +x
 }
 
-cleanup() {
-    log "Cleaning up..."
-    network="$1" master_container="$2" worker_service="$3" volume="$4"
+cleanup_volume() {
+    [ $# -eq 0 ]    
+    log "Cleaning up volume $volume"
     set -x
-    docker container rm -f $master_container
-    docker service rm $worker_service && zleep
-    docker network rm $network && zleep && zleep
     docker volume rm $volume
     set +x
 }
 
 build_master_image() {
-    name="$1"
-    log "Building master image $name"
+    [ $# -eq 0 ]
+    log "Building master image $master_image"
     set -x
-    ( cd contrib/integration-cli-on-swarm/agent; docker image build --tag $name --file Dockerfile.master .)
+    ( cd contrib/integration-cli-on-swarm/agent; docker image build --tag $master_image --file Dockerfile.master .)
     set +x
 }
 
 build_worker_image() {
-    name="$1"
+    [ $# -eq 1 ]; worker_image="$1"
     base="$(make echo-docker-image)"
     # tmp is used as FROM in worker/Dockerfile
     tmp="docker-dev:integration-cli-worker-base"
-    log "Building worker image $name from $base"
+    log "Building worker image $worker_image from $base"
     log "NOTE: you may need to run \`make build\` for updating $base"
     set -x
     docker image tag $base $tmp
-    ( cd contrib/integration-cli-on-swarm/agent; docker image build --tag $name --file Dockerfile.worker .)
+    ( cd contrib/integration-cli-on-swarm/agent; docker image build --tag $worker_image --file Dockerfile.worker .)
     docker image rm --force $tmp
     set +x
 }
 
 
 push_worker_image() {
-    name="$1"
-    log "Pushing worker image $name"
+    [ $# -eq 1 ]; worker_image="$1"    
+    log "Pushing worker image $worker_image"
     set -x
-    docker image push $name
-    set +x
-}
-
-create_network(){
-    name="$1"
-    log "Creating network $name"
-    set -x
-    docker network create --attachable --driver overlay $name
+    docker image push $worker_image
     set +x
 }
 
 enum_filter_strings(){
+    [ $# -eq 0 ]
     # TODO: refine the command for better maintainability.
     #       Note that we could use `TESTFLAGS=-check.list make test-integration-cli`, but it is slow.
     grep -oPh '^func \(.*\*\K\w+Suite\) Test\w+' integration-cli/*_test.go | sed -e 's/) /./g' | sed -e 's/$/\$/g' | sort
@@ -79,7 +76,7 @@ enum_filter_strings(){
 }
 
 create_volume() {
-    volume="$1"
+    [ $# -eq 0 ]
     log "Creating volume $volume"
     set -x
     docker volume create --driver local $volume
@@ -87,7 +84,7 @@ create_volume() {
 }
 
 create_input() {
-    volume="$1" file="$2"
+    [ $# -le 1 ]; file="$1"
     if [ -z $file ]; then
 	file=$(mktemp)
 	log "Generating the list of test filter strings as $file"
@@ -99,59 +96,39 @@ create_input() {
     set +x
 }
 
-create_worker_service(){
-    # TODO: we should better use bash4 dictionary object?
-    replicas="$1" network="$2" name="$3" image="$4" dry_run="$5"
-    # we need the image ID rather than name (#29582)
-    image_id=$(docker inspect -f '{{.Id}}' $image)
-    log "Creating worker service $name ($replicas replicas, image id=$image_id)"
+create_compose_file() {
+    # TODO: use bash4 hash map (NOTE: macOS still ships with bash3)
+    [ $# -eq 6 ]; worker_image="$1" replicas="$2" chunks="$3" shuffle="$4" rand_seed="$5" dry_run="$6"
+    worker_image_id=$(docker inspect -f '{{.Id}}' $worker_image)
+    self_node_id=$(docker node inspect -f '{{.ID}}' self)
+    template=$(cat ./contrib/integration-cli-on-swarm/docker-compose.template.yml)
+    log "Creating ${compose_file}"
+    eval "echo \"${template}\"" > $compose_file
+}
+
+create_stack() {
+    [ $# -eq 0 ]
+    log "Creating stack $stack from ${compose_file}"
     set -x
-    docker service create \
-	   --replicas $replicas \
-	   --network $network  \
-	   --restart-condition any \
-	   --mount type=bind,src=/var/run/docker.sock,target=/var/run/docker.sock \
-	   --with-registry-auth \
-	   --name $name \
-	   $image \
-	   -worker-image=$image_id \
-	   -dry-run=$dry_run
+    docker stack deploy --compose-file ${compose_file} --with-registry-auth $stack
     set +x
 }
 
-run_master_container(){
-    # TODO: we should better use bash4 dictionary object?
-    chunks="$1" network="$2" worker="$3" name="$4" image="$5" volume="$6" shuffle="$7" rand_seed="$8"
-    self_node=$(docker node inspect -f '{{.ID}}' self)
-    log "Running master container $name on node"
-    set -x
-    docker container run -it --rm \
-	   --network $network \
-	   -v $volume:/mnt \
-	   --name $name \
-	   $image \
-	   -worker-service=$worker \
-	   -chunks=$chunks \
-	   -input=/mnt/input \
-	   -shuffle=$shuffle \
-	   -rand-seed=$rand_seed
-    code=$?
-    set +x
-    return $code
+inspect_master_container_id() {
+    [ $# -eq 0 ]
+    # FIXME(AkihiroSuda): we should not rely on internal service naming convention
+    docker ps --all --quiet \
+	   --filter label=com.docker.stack.namespace=${stack} \
+	   --filter label=com.docker.swarm.service.name=${stack}_master
 }
 
 main() {
-    network="integration-cli-network"
-    volume="integration-cli-volume"
-    master_image="integration-cli-master"
-    master_container="integration-cli-master"
-    worker_image="integration-cli-worker"
-    worker_service="integration-cli-worker"
     replicas="1"
     # empty denotes $replicas
     chunks=
     # empty denotes not to push
     push_worker_image=
+    worker_image="integration-cli-worker"    
     shuffle="false"
     # zero denotes timestamp
     rand_seed=0
@@ -190,45 +167,45 @@ main() {
 		shift 1
 		;;
 	    *)
-		errexit "Usage: $0 --replicas N --chunks N --push-worker-image NAME --shuffle --rand-seed N --filters-file NAME --dry-run"
+		echo "Usage: $0 --replicas N --chunks N --push-worker-image NAME --shuffle --rand-seed N --filters-file NAME --dry-run"
+		exit 1
 		;;
 	esac
     done
     [ -z $chunks ] && chunks=$replicas
 
-    # Clean up, for just in case
-    cleanup $network $master_container $worker_service $volume || true
-    zleep
+    # Clean up previous experiment
+    ( cleanup_stack && sleep 10 ) || true
+    cleanup_volume || true
 
     # Build images
-    build_master_image $master_image
+    build_master_image
     build_worker_image $worker_image
     [ $push_worker_image ] && push_worker_image $worker_image
 
-    # Create network and volume
-    create_network $network
-    create_volume $volume
-
     # Create the list of test filter strings
-    create_input $volume $filters_file
+    create_volume
+    create_input $filters_file
 
-    # Start the workers
-    zleep # wait for network
-    create_worker_service $replicas $network $worker_service $worker_image $dry_run
+    # Create the stack
+    create_compose_file $worker_image $replicas $chunks $shuffle $rand_seed $dry_run
+    create_stack
 
-    # Print service logs in background (FIXME: not printed sometimes?)
-    docker service logs --follow $worker_service &
-    worker_service_logs_pid=$!
+    # Follow the log and wait for the completion
+    sleep 10 # FIXME: it should retry until master is up, rather than pre-sleeping
+    master_container_id=$(inspect_master_container_id)
+    docker container logs --follow $master_container_id
 
-    # Start the master
-    set +e
-    run_master_container $chunks $network $worker_service $master_container $master_image $volume $shuffle $rand_seed
-
-    # Wait for master completion
-    code=$?
-    kill -9 $worker_service_logs_pid
-    cleanup $network $master_container $worker_service $volume || true
+    # Inspect and propagate the exit code
+    code=$(docker container inspect --format '{{.State.ExitCode}}' $master_container_id)
     log "Exit status: $code"
+    log "NOTE: You may want to inspect or clean up following resources:"
+    log " - Volume: $volume" # in future this should contain useful logs (in machine-readable struct maybe)"
+    log " - Stack: $stack"   # you should be able to do `docker service logs`
+    log "Also, you can clean following resources:"
+    log " - Compose file: $compose_file"
+    log " - Image (master): $master_image"
+    log " - Image (worker): $worker_image"
     exit $code
 }
 

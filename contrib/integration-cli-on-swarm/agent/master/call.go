@@ -35,6 +35,11 @@ func executeTests(funkerName string, testChunks [][]string) error {
 				ChunkID: chunkID,
 				Tests:   tests,
 			})
+			if result.RawLog != "" {
+				for _, s := range strings.Split(result.RawLog, "\n") {
+					log.Printf("Log (chunk %d): %s", chunkID, s)
+				}
+			}
 			if err != nil {
 				log.Printf("Error while executing chunk %d: %v",
 					chunkID, err)
