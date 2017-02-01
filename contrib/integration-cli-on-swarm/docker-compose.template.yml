@@ -1,0 +1,43 @@
+# Template for the integration-cli-on-swarm stack
+# NOTE: templating is done via bash-builtin `eval`. So make sure quote symbols are escaped.
+version: \"3\"
+
+services:
+  worker:
+    image: \"${worker_image}\"
+# We need the image ID rather than name (#29582)
+    command: [\"-worker-image=${worker_image_id}\", \"-dry-run=${dry_run}\" ]
+    networks:
+      - net
+    volumes:
+# Bind-mount the API socket so that we can invoke \`docker run --privileged\` within the service containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      mode: replicated
+      replicas: ${replicas}
+      restart_policy:
+# The restart condition needs to be any for funker function
+        condition: any
+
+  master:
+    image: \"${master_image}\"
+    command: [\"-worker-service=worker\", \"-input=/mnt/input\", \"-chunks=${chunks}\", \"-shuffle=${shuffle}\", \"-rand-seed=${rand_seed}\"]
+    networks:
+      - net
+    volumes:
+      - integration-cli-on-swarm:/mnt
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: none
+      placement:
+# Make sure the master can access the volume
+        constraints: [node.id == ${self_node_id}]
+
+networks:
+  net:
+
+volumes:
+  integration-cli-on-swarm:
+    external: true

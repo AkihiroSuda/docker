@@ -4,7 +4,7 @@ IT on Swarm allows you to execute integration test in parallel across a Docker S
 
 ## Architecture
 
-### Master container
+### Master service
 
   - Works as a funker caller
   - Calls a worker funker (`-worker-service`) with a chunk of `-check.f` filter strings (passed as a file via `-input` flag, typically `/mnt/input`)
@@ -16,7 +16,7 @@ IT on Swarm allows you to execute integration test in parallel across a Docker S
 
 ### Client
 
-  - Controls master and workers
+  - Controls master and workers via `docker stack`
   - No need to have a local daemon
 
 Typically, the master and workers are supposed to be running on a cloud environment,
@@ -24,7 +24,7 @@ while the client is supposed to be running on a laptop, e.g. Docker for Mac/Wind
 
 ## Requirement
 
-  - Docker daemon 1.13 with `--experimental` flag
+  - Docker daemon 1.13
   - Private registry for distributed execution with multiple nodes
 
 ## Usage

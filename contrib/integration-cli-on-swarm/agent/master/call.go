@@ -14,13 +14,34 @@ import (
 )
 
 const (
-	// defaultFunkerRetryTimeout is for the issue https://github.com/bfirsh/funker/issues/3
+	// funkerRetryTimeout is for the issue https://github.com/bfirsh/funker/issues/3
 	// When all the funker replicas are busy in their own job, we cannot connect to funker.
-	defaultFunkerRetryTimeout  = 1 * time.Hour
-	defaultFunkerRetryDuration = 1 * time.Second
+	funkerRetryTimeout  = 1 * time.Hour
+	funkerRetryDuration = 1 * time.Second
 )
 
+// ticker is needed for some CI (e.g., on Travis, job is aborted when no output emitted for 10 minutes)
+func ticker(d time.Duration) chan struct{} {
+	t := time.NewTicker(d)
+	stop := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-t.C:
+				log.Printf("tick (just for keeping CI job active) per %s", d.String())
+			case <-stop:
+				t.Stop()
+			}
+		}
+	}()
+	return stop
+}
+
 func executeTests(funkerName string, testChunks [][]string) error {
+	tickerStopper := ticker(9*time.Minute + 55*time.Second)
+	defer func() {
+		close(tickerStopper)
+	}()
 	begin := time.Now()
 	log.Printf("Executing %d chunks in parallel, against %q", len(testChunks), funkerName)
 	var wg sync.WaitGroup
@@ -35,6 +56,11 @@ func executeTests(funkerName string, testChunks [][]string) error {
 				ChunkID: chunkID,
 				Tests:   tests,
 			})
+			if result.RawLog != "" {
+				for _, s := range strings.Split(result.RawLog, "\n") {
+					log.Printf("Log (chunk %d): %s", chunkID, s)
+				}
+			}
 			if err != nil {
 				log.Printf("Error while executing chunk %d: %v",
 					chunkID, err)
@@ -77,7 +103,7 @@ func executeTestChunk(funkerName string, args types.Args) (types.Result, error) 
 
 func executeTestChunkWithRetry(funkerName string, args types.Args) (types.Result, error) {
 	begin := time.Now()
-	for i := 0; time.Now().Sub(begin) < defaultFunkerRetryTimeout; i++ {
+	for i := 0; time.Now().Sub(begin) < funkerRetryTimeout; i++ {
 		result, err := executeTestChunk(funkerName, args)
 		if err == nil {
 			log.Printf("executeTestChunk(%q, %d) returned code %d in trial %d", funkerName, args.ChunkID, result.Code, i)
@@ -88,9 +114,9 @@ func executeTestChunkWithRetry(funkerName string, args types.Args) (types.Result
 				funkerName, args.ChunkID, i, err)
 		}
 		// TODO: non-constant sleep
-		time.Sleep(defaultFunkerRetryDuration)
+		time.Sleep(funkerRetryDuration)
 	}
-	return types.Result{}, fmt.Errorf("could not call executeTestChunk(%q, %d) in %v", funkerName, args.ChunkID, defaultFunkerRetryTimeout)
+	return types.Result{}, fmt.Errorf("could not call executeTestChunk(%q, %d) in %v", funkerName, args.ChunkID, funkerRetryTimeout)
 }
 
 //  errorSeemsInteresting returns true if err does not seem about https://github.com/bfirsh/funker/issues/3

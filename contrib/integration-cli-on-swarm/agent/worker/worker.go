@@ -1,8 +1,10 @@
 package worker
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -38,7 +40,7 @@ func handle(workerImage string, dryRun bool) error {
 		log.Printf("Executing chunk %d, contains %d test filters",
 			args.ChunkID, len(args.Tests))
 		begin := time.Now()
-		code, err := executeTestChunk(workerImage, args.Tests, dryRun)
+		rawLog, code, err := executeTestChunk(workerImage, args.Tests, dryRun)
 		if err != nil {
 			log.Printf("Error while executing chunk %d: %v", args.ChunkID, err)
 			return types.Result{
@@ -51,16 +53,18 @@ func handle(workerImage string, dryRun bool) error {
 		return types.Result{
 			ChunkID: args.ChunkID,
 			Code:    code,
+			RawLog:  string(rawLog),
 		}
 	})
 }
 
 // executeTests executes a chunk of tests and returns the single error code
-// TODO: it should return []int, rather than int.
-func executeTestChunk(workerImage string, tests []string, dryRun bool) (int, error) {
+// FIXME: it should return []int, rather than int.
+func executeTestChunk(workerImage string, tests []string, dryRun bool) ([]byte, int, error) {
 	testFlags := "-check.f " + strings.Join(tests, "|")
 	// NOTE: docker.sock needs to be bind-mounted
-	// TODO: support other TESTFLAGS as well (e.g. -race)
+	// TODO: support other TESTFLAGS as well
+	// TODO: use docker/client instead of os/exec. (Needs consideration for vendoring without dupe)
 	cmd := exec.Command("docker",
 		"run",
 		"--rm",
@@ -74,29 +78,29 @@ func executeTestChunk(workerImage string, tests []string, dryRun bool) (int, err
 		workerImage,
 		"hack/make.sh", "test-integration-cli",
 	)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	if dryRun {
 		return dryRunCommand(cmd)
 	}
 	return runCommand(cmd)
 }
 
-func dryRunCommand(cmd *exec.Cmd) (int, error) {
+func dryRunCommand(cmd *exec.Cmd) ([]byte, int, error) {
 	log.Printf("DRYRUN %v", cmd.Args)
-	return 0, nil
+	return nil, 0, nil
 }
 
-func runCommand(cmd *exec.Cmd) (int, error) {
+func runCommand(cmd *exec.Cmd) ([]byte, int, error) {
+	var rawLog bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &rawLog)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &rawLog)
 	if err := cmd.Run(); err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
-				return status.ExitStatus(), nil
+				return rawLog.Bytes(), status.ExitStatus(), nil
 			}
 		} else {
-			return 1, err
+			return rawLog.Bytes(), 1, err
 		}
 	}
-	return 0, nil
+	return rawLog.Bytes(), 0, nil
 }
