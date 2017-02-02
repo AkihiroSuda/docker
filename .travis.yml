@@ -6,8 +6,8 @@ sudo: required
 
 script:
   - sudo apt-get remove docker-engine
-  - curl -fsSL https://test.docker.com/ | sh
+  - curl -fsSL https://get.docker.com/ | sh
   - docker swarm init
   - docker pull dockercore/docker:latest
-  - DOCKER_BUILD_ARGS="--cache-from dockercore/docker:latest" make build
+  - DOCKER_BUILD_ARGS="--cache-from dockercore/docker:latest" make build-integration-cli-on-swarm
   - ./contrib/integration-cli-on-swarm/integration-cli-on-swarm.sh --replicas 5 --shuffle

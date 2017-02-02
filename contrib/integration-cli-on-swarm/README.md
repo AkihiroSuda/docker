@@ -24,14 +24,14 @@ while the client is supposed to be running on a laptop, e.g. Docker for Mac/Wind
 
 ## Requirement
 
-  - Docker daemon 1.13
+  - Docker daemon 1.13 or later
   - Private registry for distributed execution with multiple nodes
 
 ## Usage
 
-Prepare the base image:
+Prepare images:
 
-    $ make build
+    $ make build-integration-cli-on-swarm
 
 Execute tests:
 

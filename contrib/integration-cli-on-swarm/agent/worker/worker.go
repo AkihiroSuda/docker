@@ -1,4 +1,4 @@
-package worker
+package main
 
 import (
 	"bytes"
@@ -16,12 +16,17 @@ import (
 	"github.com/docker/docker/contrib/integration-cli-on-swarm/agent/types"
 )
 
+func main() {
+	if err := xmain(); err != nil {
+		log.Fatalf("fatal error: %v", err)
+	}
+}
+
 func seemsValidImageID(s string) bool {
 	return !strings.Contains(s, "/")
 }
 
-// Main is the entrypoint for worker agent.
-func Main() error {
+func xmain() error {
 	workerImage := flag.String("worker-image", "", "Needs to be this image itself")
 	dryRun := flag.Bool("dry-run", false, "Dry run")
 	flag.Parse()
@@ -36,6 +41,7 @@ func Main() error {
 }
 
 func handle(workerImage string, dryRun bool) error {
+	log.Printf("Waiting for a funker request")
 	return funker.Handle(func(args *types.Args) types.Result {
 		log.Printf("Executing chunk %d, contains %d test filters",
 			args.ChunkID, len(args.Tests))
@@ -64,7 +70,7 @@ func executeTestChunk(workerImage string, tests []string, dryRun bool) ([]byte, 
 	testFlags := "-check.f " + strings.Join(tests, "|")
 	// NOTE: docker.sock needs to be bind-mounted
 	// TODO: support other TESTFLAGS as well
-	// TODO: use docker/client instead of os/exec. (Needs consideration for vendoring without dupe)
+	// TODO: use docker/client instead of os/exec.
 	cmd := exec.Command("docker",
 		"run",
 		"--rm",
@@ -74,7 +80,7 @@ func executeTestChunk(workerImage string, tests []string, dryRun bool) ([]byte, 
 		"-e", "KEEPBUNDLE=1",
 		"-e", "DOCKER_INTEGRATION_TESTS_VERIFIED=1",
 		"-e", "BINDDIR=", // for avoiding bind-mounting "bundles" dir
-		"--entrypoint", "/bin/bash",
+		"--entrypoint", "hack/dind",
 		workerImage,
 		"hack/make.sh", "test-integration-cli",
 	)

@@ -1,4 +1,4 @@
-package master
+package main
 
 import (
 	"errors"
@@ -9,8 +9,13 @@ import (
 	"time"
 )
 
-// Main is the entrypoint for master agent.
-func Main() error {
+func main() {
+	if err := xmain(); err != nil {
+		log.Fatalf("fatal error: %v", err)
+	}
+}
+
+func xmain() error {
 	workerService := flag.String("worker-service", "", "Name of worker service")
 	chunks := flag.Int("chunks", 0, "Number of chunks")
 	input := flag.String("input", "", "Path to input file")
