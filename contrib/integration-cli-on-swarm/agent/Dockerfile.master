@@ -1,4 +1,0 @@
-FROM golang:1.7
-ADD . /go/src/github.com/docker/docker/contrib/integration-cli-on-swarm/agent
-RUN go build  -o /master github.com/docker/docker/contrib/integration-cli-on-swarm/agent
-ENTRYPOINT ["/master"]

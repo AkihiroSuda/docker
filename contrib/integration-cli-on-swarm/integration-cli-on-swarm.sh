@@ -10,6 +10,7 @@ set -o pipefail
 stack="integration-cli-on-swarm"
 volume="integration-cli-on-swarm"
 master_image="integration-cli-master"
+worker_image="integration-cli-worker"
 compose_file="./contrib/integration-cli-on-swarm/docker-compose.yml"
 
 log(){
@@ -18,49 +19,39 @@ log(){
 
 cleanup_stack() {
     [ $# -eq 0 ]
-    log "Cleaning up stack $stack"
-    set -x
-    docker stack rm $stack
-    set +x
+    if docker stack ls | grep $stack > /dev/null; then
+	log "Cleaning up stack $stack"
+	set -x
+	docker stack rm $stack
+	# FIXME: make sure all resources are removed here
+        sleep 10
+	set +x
+    fi
 }
 
 cleanup_volume() {
-    [ $# -eq 0 ]    
-    log "Cleaning up volume $volume"
-    set -x
-    docker volume rm $volume
-    set +x
-}
-
-build_master_image() {
     [ $# -eq 0 ]
-    log "Building master image $master_image"
-    set -x
-    ( cd contrib/integration-cli-on-swarm/agent; docker image build --tag $master_image --file Dockerfile.master .)
-    set +x
+    if docker inspect $volume > /dev/null 2>&1; then
+	log "Cleaning up volume $volume"
+	set -x
+	docker volume rm $volume
+	set +x
+    fi
 }
 
-build_worker_image() {
-    [ $# -eq 1 ]; worker_image="$1"
-    base="$(make echo-docker-image)"
-    # tmp is used as FROM in worker/Dockerfile
-    tmp="docker-dev:integration-cli-worker-base"
-    log "Building worker image $worker_image from $base"
-    log "NOTE: you may need to run \`make build\` for updating $base"
-    set -x
-    docker image tag $base $tmp
-    ( cd contrib/integration-cli-on-swarm/agent; docker image build --tag $worker_image --file Dockerfile.worker .)
-    docker image rm --force $tmp
-    set +x
-}
-
-
-push_worker_image() {
-    [ $# -eq 1 ]; worker_image="$1"    
-    log "Pushing worker image $worker_image"
-    set -x
-    docker image push $worker_image
-    set +x
+ensure_images() {
+    [ $# -eq 1 ]; push_worker_image="$1"
+    log "Checking $master_image and $worker_image exists"
+    # We do not need to always build them. A user may want to run integration-cli-on-swarm.sh multiple times with the same image.
+    docker image inspect $master_image $worker_image > /dev/null || log "Please run \`make build-integration-cli-on-swarm\` first"
+    if [ $push_worker_image ]; then
+	log "Pushing $push_worker_image"
+	set -x
+	# TODO: skip pushing if no change since last push
+	docker image tag $worker_image $push_worker_image
+	docker image push $push_worker_image
+	set +x
+    fi
 }
 
 enum_filter_strings(){
@@ -98,7 +89,9 @@ create_input() {
 
 create_compose_file() {
     # TODO: use bash4 hash map (NOTE: macOS still ships with bash3)
-    [ $# -eq 6 ]; worker_image="$1" replicas="$2" chunks="$3" shuffle="$4" rand_seed="$5" dry_run="$6"
+    [ $# -eq 6 ]; push_worker_image="$1" replicas="$2" chunks="$3" shuffle="$4" rand_seed="$5" dry_run="$6"
+    compose_worker_image=$worker_image
+    [ $push_worker_image ] && compose_worker_image=$push_worker_image
     worker_image_id=$(docker inspect -f '{{.Id}}' $worker_image)
     self_node_id=$(docker node inspect -f '{{.ID}}' self)
     template=$(cat ./contrib/integration-cli-on-swarm/docker-compose.template.yml)
@@ -128,7 +121,6 @@ main() {
     chunks=
     # empty denotes not to push
     push_worker_image=
-    worker_image="integration-cli-worker"    
     shuffle="false"
     # zero denotes timestamp
     rand_seed=0
@@ -146,8 +138,7 @@ main() {
 		shift 2
 		;;
 	    --push-worker-image)
-		push_worker_image="1"
-		worker_image="$2"
+		push_worker_image="$2"
 		shift 2
 		;;
 	    --shuffle)
@@ -175,21 +166,22 @@ main() {
     [ -z $chunks ] && chunks=$replicas
 
     # Clean up previous experiment
-    ( cleanup_stack && sleep 10 ) || true
-    cleanup_volume || true
+    cleanup_stack
+    cleanup_volume
 
-    # Build images
-    build_master_image
-    build_worker_image $worker_image
-    [ $push_worker_image ] && push_worker_image $worker_image
+    # Ensure images and push if required
+    ensure_images $push_worker_image
 
     # Create the list of test filter strings
     create_volume
     create_input $filters_file
 
     # Create the stack
-    create_compose_file $worker_image $replicas $chunks $shuffle $rand_seed $dry_run
+    create_compose_file $push_worker_image $replicas $chunks $shuffle $rand_seed $dry_run
     create_stack
+    log "Created stack $stack"
+    log "The log will be displayed here after some duration." # worker logs are sent to master in batch
+    log "You can watch the live status via \`docker service logs ${stack}_worker\`"
 
     # Follow the log and wait for the completion
     sleep 10 # FIXME: it should retry until master is up, rather than pre-sleeping
@@ -205,7 +197,11 @@ main() {
     log "Also, you can clean following resources:"
     log " - Compose file: $compose_file"
     log " - Image (master): $master_image"
-    log " - Image (worker): $worker_image"
+    if [ $push_worker_image ]; then
+	log " - Image (worker): $worker_image (pushed as $push_worker_image)"
+    else
+	log " - Image (worker): $worker_image"
+    fi
     exit $code
 }
 

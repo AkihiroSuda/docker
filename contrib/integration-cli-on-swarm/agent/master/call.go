@@ -1,4 +1,4 @@
-package master
+package main
 
 import (
 	"encoding/json"
@@ -121,7 +121,7 @@ func executeTestChunkWithRetry(funkerName string, args types.Args) (types.Result
 
 //  errorSeemsInteresting returns true if err does not seem about https://github.com/bfirsh/funker/issues/3
 func errorSeemsInteresting(err error) bool {
-	boringSubstrs := []string{"connection refused", "connection reset by peer", "no such host"}
+	boringSubstrs := []string{"connection refused", "connection reset by peer", "no such host", "transport endpoint is not connected"}
 	errS := err.Error()
 	for _, boringS := range boringSubstrs {
 		if strings.Contains(errS, boringS) {
