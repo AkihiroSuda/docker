@@ -92,7 +92,7 @@ create_compose_file() {
     [ $# -eq 6 ]; push_worker_image="$1" replicas="$2" chunks="$3" shuffle="$4" rand_seed="$5" dry_run="$6"
     compose_worker_image=$worker_image
     [ $push_worker_image ] && compose_worker_image=$push_worker_image
-    worker_image_id=$(docker inspect -f '{{.Id}}' $worker_image)
+    worker_image_digest=$(docker inspect -f '{{index .RepoDigests 0}}' $worker_image)
     self_node_id=$(docker node inspect -f '{{.ID}}' self)
     template=$(cat ./contrib/integration-cli-on-swarm/docker-compose.template.yml)
     log "Creating ${compose_file}"
