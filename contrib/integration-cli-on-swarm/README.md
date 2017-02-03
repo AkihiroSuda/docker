@@ -35,23 +35,23 @@ Prepare images:
 
 Execute tests:
 
-    $ ./contrib/integration-cli-on-swarm/integration-cli-on-swarm.sh --replicas 40 --push-worker-image YOUR_REGISTRY.EXAMPLE.COM/integration-cli-worker:latest 
+    $ ./contrib/integration-cli-on-swarm/integration-cli-on-swarm -replicas 40 -push-worker-image YOUR_REGISTRY.EXAMPLE.COM/integration-cli-worker:latest 
 
 
 ### Flags
 
 Basic flags:
 
-* `--replicas N`: the number of worker service replicas. i.e. degree of parallelism.
-* `--chunks N`: the number of chunks. By default, `chunks` == `replicas`.
-* `--push-worker-image REGISTRY/IMAGE:TAG`: push the worker image to the registry. Note that if you have only single node and hence you do not need a private registry, you do not need to specify `--push-worker-image`.
+* `-replicas N`: the number of worker service replicas. i.e. degree of parallelism.
+* `-chunks N`: the number of chunks. By default, `chunks` == `replicas`.
+* `-push-worker-image REGISTRY/IMAGE:TAG`: push the worker image to the registry. Note that if you have only single node and hence you do not need a private registry, you do not need to specify `-push-worker-image`.
 
 Experimental flags for mitigating makespan nonuniformity
 
-* `--shuffle`: Shuffle the test filter strings
+* `-shuffle`: Shuffle the test filter strings
 
 Flags for debugging IT on Swarm itself
 
-* `--rand-seed N`: the random seed. This flag is useful for deterministic replaying. By default(0), the timestamp is used.
-* `--filters-file FILE`: the file contains `-check.f` strings. By default, the file is automatically generated.
-* `--dry-run`: skip the actual workload
+* `-rand-seed N`: the random seed. This flag is useful for deterministic replaying. By default(0), the timestamp is used.
+* `-filters-file FILE`: the file contains `-check.f` strings. By default, the file is automatically generated.
+* `-dry-run`: skip the actual workload

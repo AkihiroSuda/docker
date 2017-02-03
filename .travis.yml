@@ -1,13 +1,18 @@
 # this .travis.yml is just for my local development,
 # and hence should not be included in the ready-to-merge commit.
 # TODO: enable cache
+language: go
+go:
+  - 1.7
+go_import_path: github.com/docker/docker
 dist: trusty
 sudo: required
-
 script:
   - sudo apt-get remove docker-engine
   - curl -fsSL https://get.docker.com/ | sh
   - docker swarm init
-  - docker pull dockercore/docker:latest
   - DOCKER_BUILD_ARGS="--cache-from dockercore/docker:latest" make build-integration-cli-on-swarm
-  - ./contrib/integration-cli-on-swarm/integration-cli-on-swarm.sh --replicas 5 --shuffle
+# TODO: should not depend on busybox
+  - docker pull busybox
+  - ./contrib/integration-cli-on-swarm/integration-cli-on-swarm -replicas 5 -shuffle
+

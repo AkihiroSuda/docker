@@ -174,7 +174,9 @@ swagger-docs: ## preview the API documentation
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.6.2
 
-build-integration-cli-on-swarm: build ## build images for running integration-cli on Swarm in parallel
+build-integration-cli-on-swarm: build ## build images and binary for running integration-cli on Swarm in parallel
+	@echo "Building contrib/integration-cli-on-swarm"
+	go build -o ./contrib/integration-cli-on-swarm/integration-cli-on-swarm ./contrib/integration-cli-on-swarm/host
 	@echo "Building $(INTEGRATION_CLI_MASTER_IMAGE)"
 	docker build -t $(INTEGRATION_CLI_MASTER_IMAGE) contrib/integration-cli-on-swarm/agent
 # For worker, we don't use `docker build` so as to enable DOCKER_INCREMENTAL_BINARY and so on
@@ -184,7 +186,6 @@ build-integration-cli-on-swarm: build ## build images for running integration-cl
 # For avoiding bakings DOCKER_GRAPHDRIVER and so on to image, we cannot use $(DOCKER_ENVS) here
 	docker run -t -d --name $(tmp) -e BUILDFLAGS -e DOCKER_INCREMENTAL_BINARY --privileged $(DOCKER_MOUNT_PKGCACHE) $(DOCKER_IMAGE) top
 	docker exec $(tmp) hack/make.sh build-integration-test-binary dynbinary
-	docker exec $(tmp) cp -L bundles/latest/dynbinary-client/docker /usr/local/bin # worker agent requires this client binary
 	docker exec $(tmp) go build -o /worker github.com/docker/docker/contrib/integration-cli-on-swarm/agent/worker
 	docker commit -c 'ENTRYPOINT ["/worker"]' $(tmp) $(INTEGRATION_CLI_WORKER_IMAGE)
 	docker rm -f $(tmp)

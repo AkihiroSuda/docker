@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
-	"time"
 )
 
 func main() {
@@ -19,7 +18,7 @@ func xmain() error {
 	workerService := flag.String("worker-service", "", "Name of worker service")
 	chunks := flag.Int("chunks", 0, "Number of chunks")
 	input := flag.String("input", "", "Path to input file")
-	randSeed := flag.Int64("rand-seed", int64(0), "Random seed (0 is treated as the current time)")
+	randSeed := flag.Int64("rand-seed", int64(0), "Random seed")
 	shuffle := flag.Bool("shuffle", false, "Shuffle the input so as to mitigate makespan nonuniformity")
 	flag.Parse()
 	if *workerService == "" {
@@ -31,9 +30,7 @@ func xmain() error {
 	if *input == "" {
 		return errors.New("input unset")
 	}
-	if *randSeed == int64(0) {
-		*randSeed = time.Now().UnixNano()
-	}
+
 	tests, err := loadTests(*input)
 	if err != nil {
 		return err

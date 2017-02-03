@@ -19,7 +19,7 @@ func main() {
 
 func validImageDigest(s string) bool {
 	// FIXME
-	return strings.Contains(s, "@sha256:")
+	return strings.Contains(s, "sha256:")
 }
 
 func xmain() error {
@@ -30,7 +30,7 @@ func xmain() error {
 		// Because of issue #29582.
 		// `docker service create localregistry.example.com/blahblah:latest` pulls the image data to local, but not a tag.
 		// So, `docker run localregistry.example.com/blahblah:latest` fails: `Unable to find image 'localregistry.example.com/blahblah:latest' locally`
-		return fmt.Errorf("worker-imag-digest must be a digest, got %q", *workerImageDigest)
+		return fmt.Errorf("worker-image-digest must be a digest, got %q", *workerImageDigest)
 	}
 	executor := privilegedTestChunkExecutor
 	if *dryRun {
