@@ -5,8 +5,7 @@ version: \"3\"
 services:
   worker:
     image: \"${compose_worker_image}\"
-# We need the image ID rather than name (#29582)
-    command: [\"-worker-image=${worker_image_id}\", \"-dry-run=${dry_run}\" ]
+    command: [\"-worker-image-digest=${worker_image_digest}\", \"-dry-run=${dry_run}\" ]
     networks:
       - net
     volumes:
