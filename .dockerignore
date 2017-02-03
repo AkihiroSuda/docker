@@ -2,4 +2,4 @@ bundles
 .gopath
 vendor/pkg
 .go-pkg-cache
-contrib/integration-cli-on-swarm/docker-compose.yml
+contrib/integration-cli-on-swarm/integration-cli-on-swarm

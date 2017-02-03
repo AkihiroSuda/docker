@@ -1,0 +1,42 @@
+# Template for the integration-cli-on-swarm stack
+# NOTE: templating is done via bash-builtin . So make sure quote symbols are escaped.
+version: "3"
+
+services:
+  worker:
+    image: "asia.gcr.io/suda-main/integration-cli-worker:latest"
+    command: ["-worker-image-digest=asia.gcr.io/suda-main/integration-cli-worker@sha256:fce33cbd4e79c6b69c01445c2dd556016ae2e2a7926a6d60c395f86ef0aee765", "-dry-run=true" ]
+    networks:
+      - net
+    volumes:
+# Bind-mount the API socket so that we can invoke `docker run --privileged` within the service containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      mode: replicated
+      replicas: 40
+      restart_policy:
+# The restart condition needs to be any for funker function
+        condition: any
+
+  master:
+    image: "integration-cli-master"
+    command: ["-worker-service=worker", "-input=/mnt/input", "-chunks=40", "-shuffle=false", "-rand-seed=0"]
+    networks:
+      - net
+    volumes:
+      - integration-cli-on-swarm:/mnt
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: none
+      placement:
+# Make sure the master can access the volume
+        constraints: [node.id == vohp3vggubbfg21egg8tyv9f7]
+
+networks:
+  net:
+
+volumes:
+  integration-cli-on-swarm:
+    external: true

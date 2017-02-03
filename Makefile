@@ -174,7 +174,9 @@ swagger-docs: ## preview the API documentation
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.6.2
 
-build-integration-cli-on-swarm: build ## build images for running integration-cli on Swarm in parallel
+build-integration-cli-on-swarm: build ## build images and binary for running integration-cli on Swarm in parallel
+	@echo "Building contrib/integration-cli-on-swarm"
+	go build -o ./contrib/integration-cli-on-swarm/integration-cli-on-swarm ./contrib/integration-cli-on-swarm/host
 	@echo "Building $(INTEGRATION_CLI_MASTER_IMAGE)"
 	docker build -t $(INTEGRATION_CLI_MASTER_IMAGE) contrib/integration-cli-on-swarm/agent
 # For worker, we don't use `docker build` so as to enable DOCKER_INCREMENTAL_BINARY and so on
