@@ -180,6 +180,13 @@ func getConfigDetails(opts deployOptions) (composetypes.ConfigDetails, error) {
 	}
 	// TODO: support multiple files
 	details.ConfigFiles = []composetypes.ConfigFile{*configFile}
+	env := os.Environ()
+	details.Environment = make(map[string]string, len(env))
+	for _, s := range env {
+		// if value is empty, s is like "K=", not "K".
+		kv := strings.SplitN(s, "=", 2)
+		details.Environment[kv[0]] = kv[1]
+	}
 	return details, nil
 }
 

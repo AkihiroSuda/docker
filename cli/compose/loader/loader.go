@@ -1,8 +1,8 @@
 package loader
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"path"
 	"reflect"
 	"regexp"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/cli/compose/interpolation"
 	"github.com/docker/docker/cli/compose/schema"
+	"github.com/docker/docker/cli/compose/template"
 	"github.com/docker/docker/cli/compose/types"
 	"github.com/docker/docker/runconfig/opts"
 	units "github.com/docker/go-units"
@@ -67,13 +68,17 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	cfg := types.Config{}
+	lookupEnv := func(k string) (string, bool) {
+		v, ok := configDetails.Environment[k]
+		return v, ok
+	}
 	if services, ok := configDict["services"]; ok {
-		servicesConfig, err := interpolation.Interpolate(services.(types.Dict), "service", os.LookupEnv)
+		servicesConfig, err := interpolation.Interpolate(services.(types.Dict), "service", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
 
-		servicesList, err := loadServices(servicesConfig, configDetails.WorkingDir)
+		servicesList, err := loadServices(servicesConfig, configDetails.WorkingDir, lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +87,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if networks, ok := configDict["networks"]; ok {
-		networksConfig, err := interpolation.Interpolate(networks.(types.Dict), "network", os.LookupEnv)
+		networksConfig, err := interpolation.Interpolate(networks.(types.Dict), "network", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +101,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if volumes, ok := configDict["volumes"]; ok {
-		volumesConfig, err := interpolation.Interpolate(volumes.(types.Dict), "volume", os.LookupEnv)
+		volumesConfig, err := interpolation.Interpolate(volumes.(types.Dict), "volume", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +115,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if secrets, ok := configDict["secrets"]; ok {
-		secretsConfig, err := interpolation.Interpolate(secrets.(types.Dict), "secret", os.LookupEnv)
+		secretsConfig, err := interpolation.Interpolate(secrets.(types.Dict), "secret", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -300,11 +305,11 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 	return fmt.Errorf("Non-string key %s: %#v", location, key)
 }
 
-func loadServices(servicesDict types.Dict, workingDir string) ([]types.ServiceConfig, error) {
+func loadServices(servicesDict types.Dict, workingDir string, lookupEnv template.Mapping) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
 	for name, serviceDef := range servicesDict {
-		serviceConfig, err := loadService(name, serviceDef.(types.Dict), workingDir)
+		serviceConfig, err := loadService(name, serviceDef.(types.Dict), workingDir, lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -314,25 +319,25 @@ func loadServices(servicesDict types.Dict, workingDir string) ([]types.ServiceCo
 	return services, nil
 }
 
-func loadService(name string, serviceDict types.Dict, workingDir string) (*types.ServiceConfig, error) {
+func loadService(name string, serviceDict types.Dict, workingDir string, lookupEnv template.Mapping) (*types.ServiceConfig, error) {
 	serviceConfig := &types.ServiceConfig{}
 	if err := transform(serviceDict, serviceConfig); err != nil {
 		return nil, err
 	}
 	serviceConfig.Name = name
 
-	if err := resolveEnvironment(serviceConfig, workingDir); err != nil {
+	if err := resolveEnvironment(serviceConfig, workingDir, lookupEnv); err != nil {
 		return nil, err
 	}
 
-	if err := resolveVolumePaths(serviceConfig.Volumes, workingDir); err != nil {
+	if err := resolveVolumePaths(serviceConfig.Volumes, workingDir, lookupEnv); err != nil {
 		return nil, err
 	}
 
 	return serviceConfig, nil
 }
 
-func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string) error {
+func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, lookupEnv template.Mapping) error {
 	environment := make(map[string]string)
 
 	if len(serviceConfig.EnvFile) > 0 {
@@ -358,10 +363,18 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string) e
 
 	serviceConfig.Environment = environment
 
+	// env is prioritized over the file
+	for k := range serviceConfig.Environment {
+		v, ok := lookupEnv(k)
+		if ok {
+			serviceConfig.Environment[k] = v
+		}
+	}
+
 	return nil
 }
 
-func resolveVolumePaths(volumes []string, workingDir string) error {
+func resolveVolumePaths(volumes []string, workingDir string, lookupEnv template.Mapping) error {
 	for i, mapping := range volumes {
 		parts := strings.SplitN(mapping, ":", 2)
 		if len(parts) == 1 {
@@ -371,7 +384,7 @@ func resolveVolumePaths(volumes []string, workingDir string) error {
 		if strings.HasPrefix(parts[0], ".") {
 			parts[0] = absPath(workingDir, parts[0])
 		}
-		parts[0] = expandUser(parts[0])
+		parts[0] = expandUser(parts[0], lookupEnv)
 
 		volumes[i] = strings.Join(parts, ":")
 	}
@@ -380,9 +393,13 @@ func resolveVolumePaths(volumes []string, workingDir string) error {
 }
 
 // TODO: make this more robust
-func expandUser(path string) string {
+func expandUser(path string, lookupEnv template.Mapping) string {
 	if strings.HasPrefix(path, "~") {
-		return strings.Replace(path, "~", os.Getenv("HOME"), 1)
+		home, ok := lookupEnv("HOME")
+		if !ok {
+			panic(errors.New("cannot expand '~', because the environment lacks HOME"))
+		}
+		return strings.Replace(path, "~", home, 1)
 	}
 	return path
 }
