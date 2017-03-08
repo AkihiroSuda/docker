@@ -35,12 +35,17 @@ func NewNamespace(name string) Namespace {
 }
 
 // AddStackLabel returns labels with the namespace label added
-func AddStackLabel(namespace Namespace, labels map[string]string) map[string]string {
-	if labels == nil {
-		labels = make(map[string]string)
+func AddStackLabel(namespace Namespace, labels composetypes.MappingWithEquals) map[string]string {
+	m := make(map[string]string)
+	for k, v := range labels {
+		if v == nil {
+			m[k] = ""
+		} else {
+			m[k] = *v
+		}
 	}
-	labels[LabelNamespace] = namespace.name
-	return labels
+	m[LabelNamespace] = namespace.name
+	return m
 }
 
 type networkMap map[string]composetypes.NetworkConfig

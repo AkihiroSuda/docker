@@ -62,8 +62,8 @@ func TestConvertVolumeToMountNamedVolume(t *testing.T) {
 			DriverOpts: map[string]string{
 				"opt": "value",
 			},
-			Labels: map[string]string{
-				"something": "labeled",
+			Labels: composetypes.MappingWithEquals{
+				"something": ptr("labeled"),
 			},
 		},
 	}

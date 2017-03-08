@@ -253,7 +253,7 @@ func transformHook(
 	case reflect.TypeOf(map[string]*types.ServiceNetworkConfig{}):
 		return transformServiceNetworkMap(data)
 	case reflect.TypeOf(types.MappingWithEquals{}):
-		return transformMappingOrList(data, "="), nil
+		return transformMappingWithEquals(data), nil
 	case reflect.TypeOf(types.MappingWithColon{}):
 		return transformMappingOrList(data, ":"), nil
 	}
@@ -341,16 +341,16 @@ func loadService(name string, serviceDict types.Dict, workingDir string, lookupE
 	return serviceConfig, nil
 }
 
-func updateEnvironment(environment map[string]string, vars map[string]string, lookupEnv template.Mapping) map[string]string {
-	result := make(map[string]string, len(environment))
+func updateEnvironment(environment, vars types.MappingWithEquals, lookupEnv template.Mapping) types.MappingWithEquals {
+	result := make(types.MappingWithEquals, len(environment))
 	for k, v := range environment {
-		result[k]=v
+		result[k] = v
 	}
 	for k, v := range vars {
 		interpolatedV, ok := lookupEnv(k)
 		if ok {
 			// lookupEnv is prioritized over vars
-			result[k] = interpolatedV
+			result[k] = &interpolatedV
 		} else {
 			result[k] = v
 		}
@@ -359,7 +359,7 @@ func updateEnvironment(environment map[string]string, vars map[string]string, lo
 }
 
 func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, lookupEnv template.Mapping) error {
-	environment := make(map[string]string)
+	environment := make(types.MappingWithEquals)
 
 	if len(serviceConfig.EnvFile) > 0 {
 		var envVars []string
@@ -373,7 +373,7 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 			envVars = append(envVars, fileVars...)
 		}
 		environment = updateEnvironment(environment,
-			runconfigopts.ConvertKVStringsToMap(envVars), lookupEnv)
+			runconfigopts.ConvertKVStringsToMapWithNil(envVars), lookupEnv)
 	}
 
 	serviceConfig.Environment = updateEnvironment(environment,
@@ -604,6 +604,25 @@ func transformMappingOrList(mappingOrList interface{}, sep string) map[string]st
 	panic(fmt.Errorf("expected a map or a slice, got: %#v", mappingOrList))
 }
 
+func transformMappingWithEquals(mappingOrList interface{}) types.MappingWithEquals {
+	if mapping, ok := mappingOrList.(types.Dict); ok {
+		return toMapStringStarString(mapping)
+	}
+	if list, ok := mappingOrList.([]interface{}); ok {
+		result := make(types.MappingWithEquals)
+		for _, value := range list {
+			parts := strings.SplitN(value.(string), "=", 2)
+			if len(parts) == 1 {
+				result[parts[0]] = nil
+			} else {
+				result[parts[0]] = &parts[1]
+			}
+		}
+		return result
+	}
+	panic(fmt.Errorf("expected a map or a slice, got: %#v", mappingOrList))
+}
+
 func transformShellCommand(value interface{}) (interface{}, error) {
 	if str, ok := value.(string); ok {
 		return shellwords.Parse(str)
@@ -673,9 +692,25 @@ func toMapStringString(value map[string]interface{}) map[string]string {
 	return output
 }
 
+func toMapStringStarString(value map[string]interface{}) map[string]*string {
+	output := make(map[string]*string)
+	for key, value := range value {
+		output[key] = toStarString(value)
+	}
+	return output
+}
+
 func toString(value interface{}) string {
 	if value == nil {
 		return ""
 	}
 	return fmt.Sprint(value)
+}
+
+func toStarString(value interface{}) *string {
+	if value == nil {
+		return nil
+	}
+	s := fmt.Sprint(value)
+	return &s
 }

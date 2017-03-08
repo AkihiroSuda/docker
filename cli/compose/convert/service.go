@@ -389,11 +389,15 @@ func convertEndpointSpec(source []composetypes.ServicePortConfig) (*swarm.Endpoi
 	return &swarm.EndpointSpec{Ports: portConfigs}, nil
 }
 
-func convertEnvironment(source map[string]string) []string {
+func convertEnvironment(source composetypes.MappingWithEquals) []string {
 	var output []string
 
 	for name, value := range source {
-		output = append(output, fmt.Sprintf("%s=%s", name, value))
+		if value == nil {
+			output = append(output, name)
+		} else {
+			output = append(output, fmt.Sprintf("%s=%s", name, *value))
+		}
 	}
 
 	return output

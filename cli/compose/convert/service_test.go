@@ -44,13 +44,14 @@ func TestConvertRestartPolicyFromFailure(t *testing.T) {
 }
 
 func TestConvertEnvironment(t *testing.T) {
-	source := map[string]string{
-		"foo": "bar",
-		"key": "value",
+	source := composetypes.MappingWithEquals{
+		"foo": ptr("bar"),
+		"key": ptr("value"),
+		"nilkey": nil,
 	}
 	env := convertEnvironment(source)
 	sort.Strings(env)
-	assert.DeepEqual(t, env, []string{"foo=bar", "key=value"})
+	assert.DeepEqual(t, env, []string{"foo=bar", "key=value", "nilkey"})
 }
 
 func TestConvertResourcesFull(t *testing.T) {

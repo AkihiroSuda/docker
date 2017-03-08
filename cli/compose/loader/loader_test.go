@@ -38,6 +38,7 @@ services:
     image: busybox
     environment:
       - FOO=1
+      - BAR
     networks:
       - with_ipam
 volumes:
@@ -66,7 +67,7 @@ var sampleDict = types.Dict{
 		},
 		"bar": types.Dict{
 			"image":       "busybox",
-			"environment": []interface{}{"FOO=1"},
+			"environment": []interface{}{"FOO=1", "BAR"},
 			"networks":    []interface{}{"with_ipam"},
 		},
 	},
@@ -98,12 +99,16 @@ var sampleDict = types.Dict{
 	},
 }
 
+func ptr(s string) *string {
+	return &s
+}
+
 var sampleConfig = types.Config{
 	Services: []types.ServiceConfig{
 		{
 			Name:        "foo",
 			Image:       "busybox",
-			Environment: map[string]string{},
+			Environment: map[string]*string{},
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_me": nil,
 			},
@@ -111,7 +116,7 @@ var sampleConfig = types.Config{
 		{
 			Name:        "bar",
 			Image:       "busybox",
-			Environment: map[string]string{"FOO": "1"},
+			Environment: map[string]*string{"FOO": ptr("1"), "BAR": nil},
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_ipam": nil,
 			},
@@ -393,22 +398,30 @@ services:
       - BAZ=2.5
       - QUX
       - QUUX=
+      - NIL
 `, map[string]string{"QUX": "qux"})
 	assert.NoError(t, err)
 
-	expected := types.MappingWithEquals{
-		"FOO":  "1",
-		"BAR":  "2",
-		"BAZ":  "2.5",
-		"QUX":  "qux",
-		"QUUX": "",
+	expected0 := types.MappingWithEquals{
+		"FOO":  ptr("1"),
+		"BAR":  ptr("2"),
+		"BAZ":  ptr("2.5"),
+		"QUX":  ptr("qux"),
+		"QUUX": ptr(""),
+	}
+	expected1 := types.MappingWithEquals{
+		"FOO":  ptr("1"),
+		"BAR":  ptr("2"),
+		"BAZ":  ptr("2.5"),
+		"QUX":  ptr("qux"),
+		"QUUX": ptr(""),
+		"NIL":  nil,
 	}
 
 	assert.Equal(t, 2, len(config.Services))
 
-	for _, service := range config.Services {
-		assert.Equal(t, expected, service.Environment)
-	}
+	assert.Equal(t, expected0, config.Services[0].Environment)
+	assert.Equal(t, expected1, config.Services[1].Environment)
 }
 
 func TestInvalidEnvironmentValue(t *testing.T) {
@@ -462,10 +475,10 @@ volumes:
 	assert.NoError(t, err)
 
 	expectedLabels := types.MappingWithEquals{
-		"home1":       home,
-		"home2":       home,
-		"nonexistent": "",
-		"default":     "default",
+		"home1":       ptr(home),
+		"home2":       ptr(home),
+		"nonexistent": ptr(""),
+		"default":     ptr("default"),
 	}
 
 	assert.Equal(t, expectedLabels, config.Services[0].Labels)
@@ -585,7 +598,7 @@ func TestFullExample(t *testing.T) {
 		Deploy: types.DeployConfig{
 			Mode:     "replicated",
 			Replicas: uint64Ptr(6),
-			Labels:   map[string]string{"FOO": "BAR"},
+			Labels:   map[string]*string{"FOO": ptr("BAR")},
 			UpdateConfig: &types.UpdateConfig{
 				Parallelism:     uint64Ptr(3),
 				Delay:           time.Duration(10 * time.Second),
@@ -618,14 +631,14 @@ func TestFullExample(t *testing.T) {
 		DNSSearch:  []string{"dc1.example.com", "dc2.example.com"},
 		DomainName: "foo.com",
 		Entrypoint: []string{"/code/entrypoint.sh", "-p", "3000"},
-		Environment: map[string]string{
-			"RACK_ENV":       "development",
-			"SHOW":           "true",
-			"SESSION_SECRET": "",
-			"FOO":            "1",
-			"BAR":            "2",
-			"BAZ":            "3",
-			"QUX":            "2",
+		Environment: map[string]*string{
+			"RACK_ENV":       ptr("development"),
+			"SHOW":           ptr("true"),
+			"SESSION_SECRET": nil,
+			"FOO":            ptr("1"),
+			"BAR":            ptr("2"),
+			"BAZ":            ptr("3"),
+			"QUX":            ptr("2"),
 		},
 		EnvFile: []string{
 			"./example1.env",
@@ -650,10 +663,10 @@ func TestFullExample(t *testing.T) {
 		Hostname: "foo",
 		Image:    "redis",
 		Ipc:      "host",
-		Labels: map[string]string{
-			"com.example.description": "Accounting webapp",
-			"com.example.number":      "42",
-			"com.example.empty-label": "",
+		Labels: map[string]*string{
+			"com.example.description": ptr("Accounting webapp"),
+			"com.example.number":      ptr("42"),
+			"com.example.empty-label": ptr(""),
 		},
 		Links: []string{
 			"db",

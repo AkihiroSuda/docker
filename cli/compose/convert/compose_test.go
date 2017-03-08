@@ -10,14 +10,18 @@ import (
 	"github.com/docker/docker/pkg/testutil/tempfile"
 )
 
+func ptr(s string) *string {
+	return &s
+}
+
 func TestNamespaceScope(t *testing.T) {
 	scoped := Namespace{name: "foo"}.Scope("bar")
 	assert.Equal(t, scoped, "foo_bar")
 }
 
 func TestAddStackLabel(t *testing.T) {
-	labels := map[string]string{
-		"something": "labeled",
+	labels := composetypes.MappingWithEquals{
+		"something": ptr("labeled"),
 	}
 	actual := AddStackLabel(Namespace{name: "foo"}, labels)
 	expected := map[string]string{
@@ -49,8 +53,8 @@ func TestNetworks(t *testing.T) {
 					},
 				},
 			},
-			Labels: map[string]string{
-				"something": "labeled",
+			Labels: composetypes.MappingWithEquals{
+				"something": ptr("labeled"),
 			},
 		},
 		"outside": composetypes.NetworkConfig{
@@ -112,7 +116,7 @@ func TestSecrets(t *testing.T) {
 	source := map[string]composetypes.SecretConfig{
 		"one": {
 			File:   secretFile.Name(),
-			Labels: map[string]string{"monster": "mash"},
+			Labels: composetypes.MappingWithEquals{"monster": ptr("mash")},
 		},
 		"ext": {
 			External: composetypes.External{

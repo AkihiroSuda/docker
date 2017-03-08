@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/compose/convert"
+	composetypes "github.com/docker/docker/cli/compose/types"
 )
 
 func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deployOptions) error {
@@ -50,10 +51,15 @@ func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deploy
 			})
 		}
 
+		serviceLabels := make(composetypes.MappingWithEquals)
+		for k, v := range service.Labels {
+			serviceLabels[k] = &v
+		}
+
 		serviceSpec := swarm.ServiceSpec{
 			Annotations: swarm.Annotations{
 				Name:   name,
-				Labels: convert.AddStackLabel(namespace, service.Labels),
+				Labels: convert.AddStackLabel(namespace, serviceLabels),
 			},
 			TaskTemplate: swarm.TaskSpec{
 				ContainerSpec: swarm.ContainerSpec{
