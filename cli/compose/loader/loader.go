@@ -229,6 +229,8 @@ func transformHook(
 	target reflect.Type,
 	data interface{},
 ) (interface{}, error) {
+	// fmt.Printf("%q -> %q\n%v\n\n", source, target, data)
+	ztring := "dummy"
 	switch target {
 	case reflect.TypeOf(types.External{}):
 		return transformExternal(data)
@@ -256,6 +258,17 @@ func transformHook(
 		return transformMappingWithEquals(data), nil
 	case reflect.TypeOf(types.MappingWithColon{}):
 		return transformMappingOrList(data, ":"), nil
+	case reflect.TypeOf(ztring):
+		// I'm even unsure why this case is required
+		if source == reflect.TypeOf(&ztring) {
+			sp := data.(*string)
+			if sp == nil {
+				return data,
+					fmt.Errorf("I'm unsure what I should do here, source=%v, target=%v, data=%v",
+						source, target, data)
+			}
+			return *sp, nil
+		}
 	}
 	return data, nil
 }

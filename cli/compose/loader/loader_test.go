@@ -116,7 +116,7 @@ var sampleConfig = types.Config{
 		{
 			Name:        "bar",
 			Image:       "busybox",
-			Environment: map[string]*string{"FOO": ptr("1"), "BAR": nil},
+			Environment: types.MappingWithEquals{"FOO": ptr("1"), "BAR": nil},
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_ipam": nil,
 			},
