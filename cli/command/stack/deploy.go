@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/compose/convert"
+	"github.com/docker/docker/pkg/errorutils"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -72,7 +73,7 @@ func checkDaemonIsSwarmManager(ctx context.Context, dockerCli *command.DockerCli
 		return err
 	}
 	if !info.Swarm.ControlAvailable {
-		return errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
+		return errorutils.ErrNotSwarmManager
 	}
 	return nil
 }

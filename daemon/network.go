@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	"github.com/docker/docker/pkg/errorutils"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
@@ -300,6 +301,12 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	driver := create.Driver
 	if driver == "" {
 		driver = c.Config().Daemon.DefaultDriver
+	}
+
+	isSwarmModeManager := daemon.clusterProvider != nil && daemon.clusterProvider.IsManager()
+	withClusterStore := daemon.configStore.ClusterStore != "" // classic
+	if driver == "overlay" && !isSwarmModeManager && !withClusterStore {
+		return nil, errorutils.ErrNotSwarmManager
 	}
 
 	nwOptions := []libnetwork.NetworkOption{
