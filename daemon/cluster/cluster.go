@@ -51,6 +51,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/docker/pkg/errorutils"
 	"github.com/docker/docker/pkg/signal"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
@@ -320,7 +321,7 @@ func (c *Cluster) errNoManager(st nodeState) error {
 		if st.err == errSwarmCertificatesExpired {
 			return errSwarmCertificatesExpired
 		}
-		return errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
+		return errorutils.ErrNotSwarmManager
 	}
 	if st.swarmNode.Manager() != nil {
 		return errors.New("This node is not a swarm manager. Manager is being prepared or has trouble connecting to the cluster.")
