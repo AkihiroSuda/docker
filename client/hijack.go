@@ -166,12 +166,16 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 }
 
 func dial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
-	if tlsConfig != nil && proto != "unix" && proto != "npipe" {
+	if tlsConfig != nil && proto != "unix" && proto != "npipe" && proto != "ssh" {
 		// Notice this isn't Go standard's tls.Dial function
 		return tlsDial(proto, addr, tlsConfig)
 	}
 	if proto == "npipe" {
 		return sockets.DialPipe(addr, 32*time.Second)
+	}
+	if proto == "ssh" {
+		// UNIMPLEMENTED
+		return sockets.DialSSH(addr)
 	}
 	return net.Dial(proto, addr)
 }

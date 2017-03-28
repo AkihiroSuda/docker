@@ -145,7 +145,9 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 		}
 	} else {
 		transport := new(http.Transport)
-		sockets.ConfigureTransport(transport, proto, addr)
+		if err := sockets.ConfigureTransport(transport, proto, addr); err != nil {
+			return nil, err
+		}
 		client = &http.Client{
 			Transport: transport,
 		}

@@ -24,6 +24,8 @@ func ConfigureTransport(tr *http.Transport, proto, addr string) error {
 		return configureUnixTransport(tr, proto, addr)
 	case "npipe":
 		return configureNpipeTransport(tr, proto, addr)
+	case "ssh": // unix over ssh
+		return configureSSHTransport(tr, proto, addr)
 	default:
 		tr.Proxy = http.ProxyFromEnvironment
 		dialer, err := DialerFromEnvironment(&net.Dialer{
