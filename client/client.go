@@ -79,6 +79,10 @@ type Client struct {
 	customHTTPHeaders map[string]string
 	// manualOverride is set to true when the version was set by users.
 	manualOverride bool
+	// set to http.Request.Host
+	reqHost string
+	// set to http.Request.URL.Host
+	reqURLHost string
 }
 
 // NewEnvClient initializes a new API client based on environment variables.
@@ -145,7 +149,9 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 		}
 	} else {
 		transport := new(http.Transport)
-		sockets.ConfigureTransport(transport, proto, addr)
+		if err := sockets.ConfigureTransport(transport, proto, addr); err != nil {
+			return nil, err
+		}
 		client = &http.Client{
 			Transport: transport,
 		}
@@ -162,6 +168,18 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 		scheme = "https"
 	}
 
+	reqHost := addr
+	if proto == "unix" || proto == "npipe" || proto == "ssh" {
+		// For local communications, it doesn't matter what the host is. We just
+		// need a valid and meaningful host name. (See #189)
+		reqHost = "docker"
+	}
+	reqURLHost := addr
+	if proto == "ssh" {
+		// reqURLHost = addr does not hurt for unix and npipe
+		reqURLHost = "docker"
+	}
+
 	return &Client{
 		scheme:            scheme,
 		host:              host,
@@ -171,6 +189,8 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 		client:            client,
 		version:           version,
 		customHTTPHeaders: httpHeaders,
+		reqHost:           reqHost,
+		reqURLHost:        reqURLHost,
 	}, nil
 }
 
