@@ -259,12 +259,12 @@ func newHTTPClient(host string, tlsOptions *tlsconfig.Options) (*http.Client, er
 	tr := &http.Transport{
 		TLSClientConfig: config,
 	}
-	proto, addr, _, err := client.ParseHost(host)
+	u, err := client.ParseHost(host)
 	if err != nil {
 		return nil, err
 	}
 
-	sockets.ConfigureTransport(tr, proto, addr)
+	sockets.ConfigureTransport(tr, u.Scheme, u.Host)
 
 	return &http.Client{
 		Transport: tr,

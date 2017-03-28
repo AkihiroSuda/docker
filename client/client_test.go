@@ -65,7 +65,7 @@ func TestNewEnvClient(t *testing.T) {
 			envs: map[string]string{
 				"DOCKER_HOST": "invalid://url",
 			},
-			expectedVersion: api.DefaultVersion,
+			expectedError: "unable to parse docker host `invalid://url`",
 		},
 		{
 			envs: map[string]string{
@@ -181,27 +181,34 @@ func TestParseHost(t *testing.T) {
 	}{
 		{"", "", "", "", true},
 		{"foobar", "", "", "", true},
-		{"foo://bar", "foo", "bar", "", false},
+		{"foo://bar", "foo", "bar", "", true},
 		{"tcp://localhost:2476", "tcp", "localhost:2476", "", false},
 		{"tcp://localhost:2476/path", "tcp", "localhost:2476", "/path", false},
 	}
 
 	for _, cs := range cases {
-		p, a, b, e := ParseHost(cs.host)
+		u, e := ParseHost(cs.host)
 		if cs.err && e == nil {
 			t.Fatalf("expected error, got nil")
 		}
 		if !cs.err && e != nil {
 			t.Fatal(e)
 		}
-		if cs.proto != p {
-			t.Fatalf("expected proto %s, got %s", cs.proto, p)
+		if u == nil {
+			if cs.err {
+				continue
+			}else {
+				t.Fatal("expected non-nil, got nil")
+			}
 		}
-		if cs.addr != a {
-			t.Fatalf("expected addr %s, got %s", cs.addr, a)
+		if cs.proto != u.Scheme {
+			t.Fatalf("expected proto %s, got %s", cs.proto, u.Scheme)
 		}
-		if cs.base != b {
-			t.Fatalf("expected base %s, got %s", cs.base, b)
+		if cs.addr != u.Host {
+			t.Fatalf("expected addr %s, got %s", cs.addr, u.Host)
+		}
+		if cs.base != u.Path {
+			t.Fatalf("expected base %s, got %s", cs.base, u.Path)
 		}
 	}
 }

@@ -44,7 +44,7 @@ func TestSetHostHeader(t *testing.T) {
 	}
 
 	for c, test := range testCases {
-		proto, addr, basePath, err := ParseHost(test.host)
+		u, err := ParseHost(test.host)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -66,9 +66,7 @@ func TestSetHostHeader(t *testing.T) {
 				}, nil
 			}),
 
-			proto:    proto,
-			addr:     addr,
-			basePath: basePath,
+			url: u,
 		}
 
 		_, err = client.sendRequest(context.Background(), "GET", testURL, nil, nil, nil)

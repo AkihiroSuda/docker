@@ -98,14 +98,15 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers hea
 	}
 	req = cli.addHeaders(req, headers)
 
-	if cli.proto == "unix" || cli.proto == "npipe" {
-		// For local communications, it doesn't matter what the host is. We just
-		// need a valid and meaningful host name. (See #189)
-		req.Host = "docker"
+	if cli.url != nil {
+		if cli.url.Scheme == "unix" || cli.url.Scheme == "npipe" {
+			// For local communications, it doesn't matter what the host is. We just
+			// need a valid and meaningful host name. (See #189)
+			req.Host = "docker"
+		}
+		req.URL.Host = cli.url.Host
+		req.URL.Scheme = cli.url.Scheme
 	}
-
-	req.URL.Host = cli.addr
-	req.URL.Scheme = cli.scheme
 
 	if expectedPayload && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
@@ -126,11 +127,11 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 
 	resp, err := ctxhttp.Do(ctx, cli.client, req)
 	if err != nil {
-		if cli.scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
+		if cli.url.Scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
 			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)
 		}
 
-		if cli.scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
+		if cli.url.Scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
 			return serverResp, fmt.Errorf("The server probably has client authentication (--tlsverify) enabled. Please check your TLS client certification settings: %v", err)
 		}
 
@@ -144,18 +145,18 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 		if nErr, ok := err.(*url.Error); ok {
 			if nErr, ok := nErr.Err.(*net.OpError); ok {
 				if os.IsPermission(nErr.Err) {
-					return serverResp, errors.Wrapf(err, "Got permission denied while trying to connect to the Docker daemon socket at %v", cli.host)
+					return serverResp, errors.Wrapf(err, "Got permission denied while trying to connect to the Docker daemon socket at %v", cli.url.String())
 				}
 			}
 		}
 
 		if err, ok := err.(net.Error); ok {
 			if err.Timeout() {
-				return serverResp, ErrorConnectionFailed(cli.host)
+				return serverResp, ErrorConnectionFailed(cli.url.String())
 			}
 			if !err.Temporary() {
 				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial unix") {
-					return serverResp, ErrorConnectionFailed(cli.host)
+					return serverResp, ErrorConnectionFailed(cli.url.String())
 				}
 			}
 		}

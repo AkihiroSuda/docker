@@ -61,16 +61,8 @@ import (
 // Client is the API client that performs all operations
 // against a docker server.
 type Client struct {
-	// scheme sets the scheme for the client
-	scheme string
-	// host holds the server address to connect to
-	host string
-	// proto holds the client protocol i.e. unix.
-	proto string
-	// addr holds the client address.
-	addr string
-	// basePath holds the path to prepend to the requests.
-	basePath string
+	// url of the server
+	url *url.URL
 	// client used to send and receive http requests.
 	client *http.Client
 	// version of the server to talk to.
@@ -134,7 +126,7 @@ func NewEnvClient() (*Client, error) {
 // highly recommended that you set a version or your client may break if the
 // server is upgraded.
 func NewClient(host string, version string, client *http.Client, httpHeaders map[string]string) (*Client, error) {
-	proto, addr, basePath, err := ParseHost(host)
+	u, err := ParseHost(host)
 	if err != nil {
 		return nil, err
 	}
@@ -145,29 +137,28 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 		}
 	} else {
 		transport := new(http.Transport)
-		sockets.ConfigureTransport(transport, proto, addr)
+		sockets.ConfigureTransport(transport, u.Scheme, u.Host)
 		client = &http.Client{
 			Transport: transport,
 		}
 	}
 
-	scheme := "http"
 	tlsConfig := resolveTLSConfig(client.Transport)
-	if tlsConfig != nil {
-		// TODO(stevvooe): This isn't really the right way to write clients in Go.
-		// `NewClient` should probably only take an `*http.Client` and work from there.
-		// Unfortunately, the model of having a host-ish/url-thingy as the connection
-		// string has us confusing protocol and transport layers. We continue doing
-		// this to avoid breaking existing clients but this should be addressed.
-		scheme = "https"
+	if u.Scheme == "tcp" {
+		if tlsConfig == nil {
+			u.Scheme = "http"
+		} else {
+			// TODO(stevvooe): This isn't really the right way to write clients in Go.
+			// `NewClient` should probably only take an `*http.Client` and work from there.
+			// Unfortunately, the model of having a host-ish/url-thingy as the connection
+			// string has us confusing protocol and transport layers. We continue doing
+			// this to avoid breaking existing clients but this should be addressed.
+			u.Scheme = "https"
+		}
 	}
 
 	return &Client{
-		scheme:            scheme,
-		host:              host,
-		proto:             proto,
-		addr:              addr,
-		basePath:          basePath,
+		url:               u,
 		client:            client,
 		version:           version,
 		customHTTPHeaders: httpHeaders,
@@ -193,9 +184,9 @@ func (cli *Client) getAPIPath(p string, query url.Values) string {
 	var apiPath string
 	if cli.version != "" {
 		v := strings.TrimPrefix(cli.version, "v")
-		apiPath = fmt.Sprintf("%s/v%s%s", cli.basePath, v, p)
+		apiPath = fmt.Sprintf("/v%s%s", v, p)
 	} else {
-		apiPath = fmt.Sprintf("%s%s", cli.basePath, p)
+		apiPath = p
 	}
 
 	u := &url.URL{
@@ -224,24 +215,51 @@ func (cli *Client) UpdateClientVersion(v string) {
 
 }
 
-// ParseHost verifies that the given host strings is valid.
-func ParseHost(host string) (string, string, string, error) {
-	protoAddrParts := strings.SplitN(host, "://", 2)
-	if len(protoAddrParts) == 1 {
-		return "", "", "", fmt.Errorf("unable to parse docker host `%s`", host)
+// ParseHost verifies that the given host strings is valid and returns a URL.
+// The URL is guaranteed to have a valid non-empty scheme value.
+// The values of other fields are not guaranteed because they depend on the scheme.
+// Scheme can be "tcp", "http", "https", "unix", "npipe", or "ssh".
+func ParseHost(host string) (*url.URL, error) {
+	u, err := url.Parse(host)
+	// NOTE: docker/opts.ParseHost (`docker -H`) can accept "1.2.3.4" and convert it to "tcp://1.2.3.4".
+	// But docker/client.ParseHost (`DOCKER_HOST`) had not. (Why?)
+	if err != nil  {
+		return nil, err
 	}
 
-	var basePath string
-	proto, addr := protoAddrParts[0], protoAddrParts[1]
-	if proto == "tcp" {
-		parsed, err := url.Parse("tcp://" + addr)
-		if err != nil {
-			return "", "", "", err
-		}
-		addr = parsed.Host
-		basePath = parsed.Path
+	if u.Scheme != "tcp" && u.Scheme != "http" && u.Scheme != "https" &&
+		u.Scheme != "unix" && u.Scheme != "npipe" &&
+		u.Scheme != "ssh" {
+		return nil, fmt.Errorf("unable to parse docker host `%s`", host)
 	}
-	return proto, addr, basePath, nil
+
+	// For compatibility (see TestSetHostHeader) - Do we really need this?
+	if u.Scheme == "unix" || u.Scheme == "npipe" {
+		if u.Host == "" {
+			u.Host = u.Path
+		}
+	}
+
+	// Check SSH-specific part
+	if u.Scheme != "ssh" {
+		if u.User != nil {
+			return nil, fmt.Errorf("user %q is unexpected for scheme %q",
+				u.User.Username(), u.Scheme)
+		}
+	} else {
+		if u.User == nil || (u.User != nil && u.User.Username() == "") {
+			return nil, fmt.Errorf("scheme %q requires non-empty user", u.Scheme)
+		}
+		_, ok := u.User.Password()
+		if ok {
+			return nil, fmt.Errorf("plain-text password is not supported for scheme %q",
+				u.Scheme)
+		}
+		if u.Path == "" {
+			return nil, fmt.Errorf("scheme %q requires non-empty path", u.Scheme)
+		}
+	}
+	return u, nil
 }
 
 // CustomHTTPHeaders returns the custom http headers associated with this

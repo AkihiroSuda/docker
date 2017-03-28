@@ -42,6 +42,7 @@ func ValidateHost(val string) (string, error) {
 }
 
 // ParseHost and set defaults for a Daemon host string
+// TODO(akihirosuda): remove parse logic from opts and use client.ParseHost
 func ParseHost(defaultToTLS bool, val string) (string, error) {
 	host := strings.TrimSpace(val)
 	if host == "" {
@@ -75,7 +76,7 @@ func parseDockerDaemonHost(addr string) (string, error) {
 		return parseSimpleProtoAddr("unix", addrParts[1], DefaultUnixSocket)
 	case "npipe":
 		return parseSimpleProtoAddr("npipe", addrParts[1], DefaultNamedPipe)
-	case "fd":
+	case "fd", "ssh":
 		return addr, nil
 	default:
 		return "", fmt.Errorf("Invalid bind address format: %s", addr)

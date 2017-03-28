@@ -46,11 +46,11 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	}
 	req = cli.addHeaders(req, headers)
 
-	req.Host = cli.addr
+	req.Host = cli.url.Host
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 
-	conn, err := dial(cli.proto, cli.addr, resolveTLSConfig(cli.client.Transport))
+	conn, err := dial(cli.url, resolveTLSConfig(cli.client.Transport))
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return types.HijackedResponse{}, fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
@@ -165,13 +165,15 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 	return &tlsClientCon{conn, rawConn}, nil
 }
 
-func dial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
-	if tlsConfig != nil && proto != "unix" && proto != "npipe" {
+func dial(u *url.URL, tlsConfig *tls.Config) (net.Conn, error) {
+	if tlsConfig != nil && u.Scheme != "unix" && u.Scheme != "npipe" && u.Scheme != "ssh" {
 		// Notice this isn't Go standard's tls.Dial function
-		return tlsDial(proto, addr, tlsConfig)
+		return tlsDial(u.Scheme, u.Host, tlsConfig)
 	}
-	if proto == "npipe" {
-		return sockets.DialPipe(addr, 32*time.Second)
+	if u.Scheme == "npipe" {
+		return sockets.DialPipe(u.Host, 32*time.Second)
+	} else if u.Scheme == "ssh" {
+		return sshDial(u)
 	}
-	return net.Dial(proto, addr)
+	return net.Dial(u.Scheme, u.Host)
 }
