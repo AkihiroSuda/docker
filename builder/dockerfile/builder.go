@@ -104,6 +104,12 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
+	if buildOptions.Parallel && !bm.backend.HasExperimental() {
+		return "", apierrors.NewBadRequestError(errors.New("parallel is only supported with experimental mode"))
+	}
+	if buildOptions.Parallelism > 0 && !buildOptions.Parallel {
+		return "", apierrors.NewBadRequestError(errors.New("parallel needs to be true for parallelism"))
+	}
 	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
 	if err != nil {
 		return "", err
@@ -117,6 +123,7 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if len(dockerfileName) > 0 {
 		buildOptions.Dockerfile = dockerfileName
 	}
+
 	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, nil)
 	if err != nil {
 		return "", err
@@ -257,6 +264,21 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		if err := b.checkDispatch(n, false); err != nil {
 			return "", perrors.Wrapf(err, "Dockerfile parse error line %d", n.StartLine)
 		}
+	}
+
+	// Now b.dockerfile is ensured, so we can do parallel things
+	logrus.Infof("[BUILDER] parallel: %v, parallelism: %d (parallelism is not yet implemented)",
+		b.options.Parallel, b.options.Parallelism)
+	if b.options.Parallel {
+		parb := &parallelBuilder{
+			b: b,
+		}
+		imageIDs, err := parb.buildStages()
+		if err != nil {
+			return "", err
+		}
+		// return the image ID of the last stage
+		return imageIDs[len(imageIDs)-1], nil
 	}
 
 	for i, n := range b.dockerfile.Children {
