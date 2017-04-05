@@ -56,6 +56,8 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	options.ExtraHosts = r.Form["extrahosts"]
 	options.SecurityOpt = r.Form["securityopt"]
 	options.Squash = httputils.BoolValue(r, "squash")
+	options.Parallelism = httputils.Int64ValueOrZero(r, "parallelism")
+	options.Parallel = httputils.BoolValue(r, "parallel")
 
 	if r.Form.Get("shmsize") != "" {
 		shmSize, err := strconv.ParseInt(r.Form.Get("shmsize"), 10, 64)

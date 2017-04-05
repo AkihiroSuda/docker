@@ -104,6 +104,12 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
 		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
 	}
+	if buildOptions.Parallel && !bm.backend.HasExperimental() {
+		return "", apierrors.NewBadRequestError(errors.New("parallel is only supported with experimental mode"))
+	}
+	if buildOptions.Parallelism > 0 && !buildOptions.Parallel {
+		return "", apierrors.NewBadRequestError(errors.New("parallel needs to be true for parallelism"))
+	}
 	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
 	if err != nil {
 		return "", err
@@ -117,12 +123,21 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 	if len(dockerfileName) > 0 {
 		buildOptions.Dockerfile = dockerfileName
 	}
-	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, nil)
-	if err != nil {
-		return "", err
+	logrus.Infof("[BUILDER] parallel: %v", buildOptions.Parallel)
+	if buildOptions.Parallel {
+		b, err := newParallelBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, nil)
+		if err != nil {
+			return "", err
+		}
+		return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
+	} else {
+		b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, nil)
+		if err != nil {
+			return "", err
+		}
+		b.imageContexts.cache = bm.pathCache
+		return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 	}
-	b.imageContexts.cache = bm.pathCache
-	return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 }
 
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
