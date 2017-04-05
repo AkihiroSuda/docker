@@ -61,6 +61,8 @@ type buildOptions struct {
 	securityOpt    []string
 	networkMode    string
 	squash         bool
+	parallelism    int
+	parallel       bool
 }
 
 // NewBuildCommand creates a new `docker build` command
@@ -119,6 +121,13 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.SetAnnotation("squash", "experimental", nil)
 	flags.SetAnnotation("squash", "version", []string{"1.25"})
 
+	flags.IntVar(&options.parallelism, "parallelism", 0, "Parallelism (if Parallel is true)")
+	flags.SetAnnotation("squash", "experimental", nil)
+	flags.SetAnnotation("squash", "version", []string{"1.29"})
+
+	flags.BoolVar(&options.parallel, "parallel", false, "Parallel build for multi-stage image")
+	flags.SetAnnotation("parallel", "experimental", nil)
+	flags.SetAnnotation("parallel", "version", []string{"1.29"})
 	return cmd
 }
 
@@ -283,6 +292,8 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		NetworkMode:    options.networkMode,
 		Squash:         options.squash,
 		ExtraHosts:     options.extraHosts.GetAll(),
+		Parallelism:    options.parallelism,
+		Parallel:       options.parallel,
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)
