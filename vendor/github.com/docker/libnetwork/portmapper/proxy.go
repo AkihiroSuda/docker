@@ -92,8 +92,9 @@ func newDummyProxy(proto string, hostIP net.IP, hostPort int) userlandProxy {
 	case "sctp":
 		addr := &sctp.SCTPAddr{IP: []net.IP{hostIP}, Port: hostPort}
 		return &dummyProxy{addr: addr}
+	default:
+		panic(fmt.Errorf("Unknown addr type: %s", proto))
 	}
-	return nil
 }
 
 func (p *dummyProxy) Start() error {
