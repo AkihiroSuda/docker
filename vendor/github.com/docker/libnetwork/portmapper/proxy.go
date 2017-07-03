@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/ishidawataru/sctp"
 )
 
 const userlandProxyCommandName = "docker-proxy"
@@ -87,6 +89,9 @@ func newDummyProxy(proto string, hostIP net.IP, hostPort int) userlandProxy {
 	case "udp":
 		addr := &net.UDPAddr{IP: hostIP, Port: hostPort}
 		return &dummyProxy{addr: addr}
+	case "sctp":
+		addr := &sctp.SCTPAddr{IP: []net.IP{hostIP}, Port: hostPort}
+		return &dummyProxy{addr: addr}
 	}
 	return nil
 }
@@ -101,6 +106,12 @@ func (p *dummyProxy) Start() error {
 		p.listener = l
 	case *net.UDPAddr:
 		l, err := net.ListenUDP("udp", addr)
+		if err != nil {
+			return err
+		}
+		p.listener = l
+	case *sctp.SCTPAddr:
+		l, err := sctp.ListenSCTP("sctp", addr)
 		if err != nil {
 			return err
 		}
