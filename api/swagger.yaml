@@ -167,7 +167,7 @@ definitions:
       Type:
         type: "string"
         x-nullable: false
-        enum: ["tcp", "udp"]
+        enum: ["tcp", "udp", "sctp"]
     example:
       PrivatePort: 8080
       PublicPort: 80
@@ -801,7 +801,7 @@ definitions:
         description: |
           An object mapping ports to an empty object in the form:
 
-          `{"<port>/<tcp|udp>": {}}`
+          `{"<port>/<tcp|udp|sctp>": {}}`
         type: "object"
         additionalProperties:
           type: "object"
