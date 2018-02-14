@@ -12,8 +12,16 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 	if hostname == DefaultNamespace || hostname == IndexHostname {
 		// v2 mirrors
 		for _, mirror := range s.config.Mirrors {
-			if !strings.HasPrefix(mirror, "http://") && !strings.HasPrefix(mirror, "https://") {
-				mirror = "https://" + mirror
+			uri, err := url.Parse(mirror)
+			if err != nil {
+				return nil, err // should not happen
+			}
+			if uri.Scheme == "" {
+				if strings.HasPrefix(mirror, "/") {
+					mirror = "unix://" + mirror
+				} else {
+					mirror = "https://" + mirror
+				}
 			}
 			mirrorURL, err := url.Parse(mirror)
 			if err != nil {

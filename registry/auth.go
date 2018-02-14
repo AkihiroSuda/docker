@@ -269,6 +269,7 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.M
 	}
 	resp, err := pingClient.Do(req)
 	if err != nil {
+		logrus.Debugf("pingClient failed, req=%+v, err=%v", req, err)
 		return nil, false, err
 	}
 	defer resp.Body.Close()
