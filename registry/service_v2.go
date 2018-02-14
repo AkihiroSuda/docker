@@ -4,7 +4,9 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/pkg/errors"
 )
 
 func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
@@ -12,8 +14,17 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 	if hostname == DefaultNamespace || hostname == IndexHostname {
 		// v2 mirrors
 		for _, mirror := range s.config.Mirrors {
-			if !strings.HasPrefix(mirror, "http://") && !strings.HasPrefix(mirror, "https://") {
-				mirror = "https://" + mirror
+			uri, err := url.Parse(mirror)
+			if err != nil {
+				return nil, err // should not happen
+			}
+			if uri.Scheme == "" {
+				if strings.HasPrefix(mirror, "/") {
+					// in future, we may want to `mirror = "unix://" + mirror`
+					return nil, errdefs.InvalidParameter(errors.Errorf("invalid mirror server address %q", mirror))
+				} else {
+					mirror = "https://" + mirror
+				}
 			}
 			mirrorURL, err := url.Parse(mirror)
 			if err != nil {
