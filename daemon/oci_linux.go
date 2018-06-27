@@ -16,6 +16,8 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/rootless"
+	"github.com/docker/docker/rootless/specconv"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -84,7 +86,7 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 	// Build lists of devices allowed and created within the container.
 	var devs []specs.LinuxDevice
 	devPermissions := s.Linux.Resources.Devices
-	if c.HostConfig.Privileged {
+	if c.HostConfig.Privileged && !rootless.RunningAsUnprivilegedUser {
 		hostDevices, err := devices.HostDevices()
 		if err != nil {
 			return err
@@ -814,7 +816,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		}
 	}
 
-	if apparmor.IsEnabled() {
+	if apparmor.IsEnabled() && !rootless.RunningAsUnprivilegedUser {
 		var appArmorProfile string
 		if c.AppArmorProfile != "" {
 			appArmorProfile = c.AppArmorProfile
@@ -851,6 +853,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		s.Linux.ReadonlyPaths = c.HostConfig.ReadonlyPaths
 	}
 
+	if rootless.RunningAsUnprivilegedUser {
+		err := toRootless(&s)
+		return &s, err
+	}
+
 	return &s, nil
 }
 
@@ -878,4 +885,55 @@ func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
 		}
 	}
 	c.Ulimits = ulimits
+}
+
+func toRootless(s *specs.Spec) error {
+	specHadNetNS := false
+	for _, n := range s.Linux.Namespaces {
+		if n.Type == specs.NetworkNamespace {
+			specHadNetNS = true
+			break
+		}
+	}
+	if err := specconv.ToRootless(s, &specconv.RootlessOpts{
+		MapAllSubIDs: true,
+	}); err != nil {
+		return err
+	}
+	// fix up mounts
+	for i := range s.Mounts {
+		m := &s.Mounts[i] // `for i, m := range` does not create reference
+		if m.Type == "bind" {
+			unprivOpts, err := getUnprivilegedMountFlags(m.Source)
+			if err != nil {
+				return err
+			}
+			m.Options = dedupeStringSlice(append(m.Options, unprivOpts...))
+		}
+	}
+	// specconv removes netns but we can/need to use netns
+	if specHadNetNS {
+		s.Linux.Namespaces = append(s.Linux.Namespaces, specs.LinuxNamespace{
+			Type: specs.NetworkNamespace,
+		})
+	}
+
+	// TODO: keep cgroups if permissions are configured
+	s.Linux.CgroupsPath = ""
+	s.Process.User.AdditionalGids = nil
+	s.Process.ApparmorProfile = ""
+	s.Process.SelinuxLabel = ""
+	return nil
+}
+
+func dedupeStringSlice(ss []string) []string {
+	m := make(map[string]struct{}, len(ss))
+	res := []string{}
+	for _, s := range ss {
+		if _, ok := m[s]; !ok {
+			m[s] = struct{}{}
+			res = append(res, s)
+		}
+	}
+	return res
 }

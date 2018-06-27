@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/rootless"
 	"github.com/sirupsen/logrus"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
@@ -566,6 +567,11 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(config *config.Config, registryService registry.Service, containerdRemote libcontainerd.Remote, pluginStore *plugin.Store) (daemon *Daemon, err error) {
+	rootlessMode := rootless.RunningAsUnprivilegedUser
+	if rootlessMode && !config.Experimental {
+		return nil, fmt.Errorf("rootless mode is only supported when experimental is enabled; also you need to unshare userns/mountns/netns before running the daemon")
+		// TODO: make sure userns/mountns/netns are unshared.
+	}
 	setDefaultMtu(config)
 
 	// Ensure that we have a correct root key limit for launching containers.
@@ -660,8 +666,10 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
-	if err := ensureDefaultAppArmorProfile(); err != nil {
-		logrus.Errorf(err.Error())
+	if !rootless.RunningAsUnprivilegedUser {
+		if err := ensureDefaultAppArmorProfile(); err != nil {
+			logrus.Errorf(err.Error())
+		}
 	}
 
 	daemonRepo := filepath.Join(config.Root, "containers")

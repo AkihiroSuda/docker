@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/rootless"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/libnetwork"
@@ -775,7 +776,7 @@ func overlaySupportsSelinux() (bool, error) {
 // configureKernelSecuritySupport configures and validates security support for the kernel
 func configureKernelSecuritySupport(config *config.Config, driverName string) error {
 	if config.EnableSelinuxSupport {
-		if !selinuxEnabled() {
+		if !selinuxEnabled() || rootless.RunningAsUnprivilegedUser {
 			logrus.Warn("Docker could not enable SELinux on the host system")
 			return nil
 		}
