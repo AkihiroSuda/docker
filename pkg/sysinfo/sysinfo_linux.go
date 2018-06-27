@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -50,9 +51,7 @@ func New(quiet bool) *SysInfo {
 	sysInfo.BridgeNFCallIP6TablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-ip6tables")
 
 	// Check if AppArmor is supported.
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
-		sysInfo.AppArmor = true
-	}
+	sysInfo.AppArmor = apparmor.IsEnabled()
 
 	// Check if Seccomp is supported, via CONFIG_SECCOMP.
 	if err := unix.Prctl(unix.PR_GET_SECCOMP, 0, 0, 0, 0); err != unix.EINVAL {
