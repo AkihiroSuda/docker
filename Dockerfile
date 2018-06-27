@@ -164,7 +164,19 @@ ENV INSTALL_BINARY_NAME=tini
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
+FROM base AS rootlesskit
+ENV INSTALL_BINARY_NAME=rootlesskit
+COPY hack/dockerfile/install/install.sh ./install.sh
+COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
+# vpnkit requires non-glibc system for static build (https://github.com/moby/vpnkit/issues/407)
+FROM alpine:3.7 AS vpnkit
+RUN apk --no-cache add bash build-base patch git ocaml opam
+ENV INSTALL_BINARY_NAME=vpnkit
+COPY hack/dockerfile/install/install.sh ./install.sh
+COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev
@@ -229,6 +241,8 @@ RUN cd /docker-py \
 	&& pip install docker-pycreds==0.2.1 \
 	&& pip install yamllint==1.5.0 \
 	&& pip install -r test-requirements.txt
+COPY --from=rootlesskit /build/ /usr/local/bin/
+COPY --from=vpnkit /build/ /usr/local/bin/
 
 ENV PATH=/usr/local/cli:$PATH
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux

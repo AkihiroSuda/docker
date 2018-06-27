@@ -3,6 +3,7 @@ package v2 // import "github.com/docker/docker/plugin/v2"
 import (
 	"fmt"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/rootless"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -33,7 +35,16 @@ type Plugin struct {
 	addr           net.Addr
 }
 
-const defaultPluginRuntimeDestination = "/run/docker/plugins"
+var defaultPluginRuntimeDestination = "/run/docker/plugins"
+
+func init() {
+	if rootless.RunningWithNonRootUsername {
+		if xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR"); xdgRuntimeDir != "" {
+			dirs := strings.Split(xdgRuntimeDir, ":")
+			defaultPluginRuntimeDestination = filepath.Join(dirs[0], "docker-plugins")
+		}
+	}
+}
 
 // ErrInadequateCapability indicates that the plugin did not have the requested capability.
 type ErrInadequateCapability struct {
