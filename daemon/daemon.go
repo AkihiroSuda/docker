@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/rootless"
 	"github.com/sirupsen/logrus"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
@@ -660,8 +661,10 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
-	if err := ensureDefaultAppArmorProfile(); err != nil {
-		logrus.Errorf(err.Error())
+	if !rootless.RunningAsUnprivilegedUser {
+		if err := ensureDefaultAppArmorProfile(); err != nil {
+			logrus.Errorf(err.Error())
+		}
 	}
 
 	daemonRepo := filepath.Join(config.Root, "containers")

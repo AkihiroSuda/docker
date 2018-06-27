@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/rootless"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -19,6 +21,14 @@ import (
 // plugin socket files are created here and they cannot exceed max
 // path length of 108 bytes.
 func getPluginExecRoot(root string) string {
+	if rootless.RunningAsUnprivilegedUser {
+		if xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR"); xdgRuntimeDir != "" {
+			dirs := strings.Split(xdgRuntimeDir, ":")
+			// len("/run/user/4294967296/docker-plugins") == 35
+			return filepath.Join(dirs[0], "docker-plugins")
+		}
+	}
+
 	return "/run/docker/plugins"
 }
 
