@@ -10,14 +10,25 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/rootless"
 	"github.com/pkg/errors"
 )
 
 var (
 	// ErrNotFound plugin not found
 	ErrNotFound = errors.New("plugin not found")
+	// socketsPath is overridden in init() on rootless mode
 	socketsPath = "/run/docker/plugins"
 )
+
+func init() {
+	if rootless.RunningAsUnprivilegedUser {
+		if xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR"); xdgRuntimeDir != "" {
+			dirs := strings.Split(xdgRuntimeDir, ":")
+			socketsPath = filepath.Join(dirs[0], "docker-plugins")
+		}
+	}
+}
 
 // localRegistry defines a registry that is local (using unix socket).
 type localRegistry struct{}
