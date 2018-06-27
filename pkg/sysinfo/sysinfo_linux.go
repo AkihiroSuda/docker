@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/docker/docker/rootless"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -60,6 +61,12 @@ func New(quiet bool) *SysInfo {
 		if err := unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, 0, 0, 0); err != unix.EINVAL {
 			sysInfo.Seccomp = true
 		}
+	}
+
+	sysInfo.Rootless = rootless.RunningAsUnprivilegedUser
+	if sysInfo.Rootless {
+		sysInfo.AppArmor = false
+		// NOTE: cgroups is disabled as well for rootless mode currently
 	}
 
 	return sysInfo

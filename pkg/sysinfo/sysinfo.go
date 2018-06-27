@@ -27,6 +27,9 @@ type SysInfo struct {
 
 	// Whether the cgroup has the mountpoint of "devices" or not
 	CgroupDevicesEnabled bool
+
+	// Whether the daemon is running as a non-root user
+	Rootless bool
 }
 
 type cgroupMemInfo struct {

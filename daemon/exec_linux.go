@@ -4,6 +4,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/caps"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/rootless"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -29,7 +30,7 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 		p.Capabilities.Inheritable = p.Capabilities.Bounding
 		p.Capabilities.Effective = p.Capabilities.Bounding
 	}
-	if apparmor.IsEnabled() {
+	if apparmor.IsEnabled() && !rootless.RunningAsUnprivilegedUser {
 		var appArmorProfile string
 		if c.AppArmorProfile != "" {
 			appArmorProfile = c.AppArmorProfile
