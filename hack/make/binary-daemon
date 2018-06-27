@@ -14,12 +14,13 @@ copy_binaries() {
 		return
 	fi
 	echo "Copying nested executables into $dir"
-	for file in containerd containerd-shim containerd-ctr runc init proxy; do
+	for file in containerd containerd-shim containerd-ctr runc init proxy rootlesskit slirp4netns; do
 		cp -f `which "docker-$file"` "$dir/"
 		if [ "$hash" == "hash" ]; then
 			hash_files "$dir/docker-$file"
 		fi
 	done
+  cp -f /usr/local/bin/docker-slirp4netns.LICENSE "$dir/"
 }
 
 [ -z "$KEEPDEST" ] && rm -rf "$DEST"
