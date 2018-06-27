@@ -59,6 +59,9 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	cRunning, cPaused, cStopped := stateCtr.get()
 
 	securityOptions := []string{}
+	if daemon.configStore.Rootless {
+		securityOptions = append(securityOptions, "name=rootless")
+	}
 	if sysInfo.AppArmor {
 		securityOptions = append(securityOptions, "name=apparmor")
 	}
@@ -69,6 +72,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		}
 		securityOptions = append(securityOptions, fmt.Sprintf("name=seccomp,profile=%s", profile))
 	}
+	// TODO: move selinuxEnabled to pkg/sysinfo?
 	if selinuxEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
 	}
