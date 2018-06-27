@@ -3,6 +3,11 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/containerd/containerd/rootless"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
@@ -14,6 +19,23 @@ var (
 	defaultDataRoot = "/var/lib/docker"
 	defaultExecRoot = "/var/run/docker"
 )
+
+func init() {
+	if rootless.RunningAsUnprivilegedUser {
+		//  pam_systemd sets XDG_RUNTIME_DIR but not other dirs.
+		if xdgDataHome := os.Getenv("XDG_DATA_HOME"); xdgDataHome != "" {
+			dirs := strings.Split(xdgDataHome, ":")
+			defaultDataRoot = filepath.Join(dirs[0], "docker")
+		} else if home := os.Getenv("HOME"); home != "" {
+			defaultDataRoot = filepath.Join(home, ".local", "share", "docker")
+		}
+		if xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR"); xdgRuntimeDir != "" {
+			dirs := strings.Split(xdgRuntimeDir, ":")
+			defaultPidFile = filepath.Join(dirs[0], "docker.pid")
+			defaultExecRoot = filepath.Join(dirs[0], "docker")
+		}
+	}
+}
 
 // installUnixConfigFlags adds command-line options to the top-level flag parser for
 // the current process that are common across Unix platforms.

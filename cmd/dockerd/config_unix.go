@@ -3,6 +3,7 @@
 package main
 
 import (
+	"github.com/containerd/containerd/rootless"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/go-units"
@@ -47,4 +48,6 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.StringVar(&conf.IpcMode, "default-ipc-mode", config.DefaultIpcMode, `Default mode for containers ipc ("shareable" | "private")`)
 	flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "Default address pools for node specific local networks")
 
+	rootlessDefault := rootless.RunningAsUnprivilegedUser
+	flags.BoolVar(&conf.Rootless, "rootless", rootlessDefault, "Enable rootless mode; note that you need to unshare userns, mountns, and netns before running dockerd")
 }

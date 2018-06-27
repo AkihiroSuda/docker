@@ -24,3 +24,22 @@ const (
 	// sending protobufs passed over the GRPC API.
 	DefaultMaxSendMsgSize = 16 << 20
 )
+
+var (
+	// UserRootDir is typically set to "/home/$USER/.local/share/containerd" on Linux during init().
+	UserRootDir = DefaultRootDir
+
+	// UserStateDir is typically set to "/run/user/$UID/containerd" on Linux.
+	// Typically this directory needs to be created with sticky bit.
+	// See https://github.com/opencontainers/runc/issues/1694
+	UserStateDir = DefaultStateDir
+
+	// UserAddress is typically set to "/run/user/$UID/containerd/containerd.sock" on Linux during init().
+	UserAddress = DefaultAddress
+
+	// UserDebugAddress is typically set to "/run/user/$UID/containerd/debug.sock" on Linux during init().
+	UserDebugAddress = DefaultDebugAddress
+
+	// UserFIFODir is typically set to "/run/user/$UID/containerd/fifo" on Linux during init().
+	UserFIFODir = DefaultFIFODir
+)

@@ -37,6 +37,7 @@ type Config struct {
 	ShmSize              opts.MemBytes            `json:"default-shm-size,omitempty"`
 	NoNewPrivileges      bool                     `json:"no-new-privileges,omitempty"`
 	IpcMode              string                   `json:"default-ipc-mode,omitempty"`
+	Rootless             bool                     `json:"rootless,omitempty"`
 }
 
 // BridgeConfig stores all the bridge driver specific

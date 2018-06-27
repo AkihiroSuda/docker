@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/rootless/specconv"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	daemonconfig "github.com/docker/docker/daemon/config"
@@ -851,6 +852,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		s.Linux.ReadonlyPaths = c.HostConfig.ReadonlyPaths
 	}
 
+	if daemon.configStore.Rootless {
+		err := toRootless(&s)
+		return &s, err
+	}
+
 	return &s, nil
 }
 
@@ -878,4 +884,44 @@ func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
 		}
 	}
 	c.Ulimits = ulimits
+}
+
+func toRootless(s *specs.Spec) error {
+	if err := specconv.ToRootless(s, &specconv.RootlessOpts{
+		MapAllSubIDs: true,
+	}); err != nil {
+		return err
+	}
+	for i := range s.Mounts {
+		m := &s.Mounts[i] // `for i, m := range` does not create reference
+		if m.Type == "bind" {
+			unprivOpts, err := getUnprivilegedMountFlags(m.Source)
+			if err != nil {
+				return err
+			}
+			m.Options = dedupeStringSlice(append(m.Options, unprivOpts...))
+		}
+	}
+	// specconv removes netns but we can/need to use netns
+	// TODO: support net=none
+	s.Linux.Namespaces = append(s.Linux.Namespaces, specs.LinuxNamespace{
+		Type: specs.NetworkNamespace,
+	})
+	// Remove cgroups atm
+	// TODO: keep cgroups if possible
+	s.Linux.CgroupsPath = ""
+	s.Process.User.AdditionalGids = nil
+	return nil
+}
+
+func dedupeStringSlice(ss []string) []string {
+	m := make(map[string]struct{}, len(ss))
+	res := []string{}
+	for _, s := range ss {
+		if _, ok := m[s]; !ok {
+			m[s] = struct{}{}
+			res = append(res, s)
+		}
+	}
+	return res
 }
