@@ -660,6 +660,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
+	// ensureDefaultAppArmorProfile does nothing if apparmor is disabled
 	if err := ensureDefaultAppArmorProfile(); err != nil {
 		logrus.Errorf(err.Error())
 	}

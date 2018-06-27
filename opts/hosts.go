@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -18,6 +20,9 @@ var (
 	// DefaultUnixSocket Path for the unix socket.
 	// Docker daemon by default always listens on the default unix socket
 	DefaultUnixSocket = "/var/run/docker.sock"
+	// DefaultUserUnixSocket is set on init().
+	// Typically, the value will be "/run/user/$UID/docker.sock".
+	DefaultUserUnixSocket = DefaultUnixSocket
 	// DefaultTCPHost constant defines the default host string used by docker on Windows
 	DefaultTCPHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultHTTPPort)
 	// DefaultTLSHost constant defines the default host string used by docker for TLS sockets
@@ -25,6 +30,13 @@ var (
 	// DefaultNamedPipe defines the default named pipe used by docker on Windows
 	DefaultNamedPipe = `//./pipe/docker_engine`
 )
+
+func init() {
+	if xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR"); xdgRuntimeDir != "" {
+		dirs := strings.Split(xdgRuntimeDir, ":")
+		DefaultUserUnixSocket = filepath.Join(dirs[0], "docker.sock")
+	}
+}
 
 // ValidateHost validates that the specified string is a valid host and returns it.
 func ValidateHost(val string) (string, error) {
@@ -42,13 +54,17 @@ func ValidateHost(val string) (string, error) {
 }
 
 // ParseHost and set defaults for a Daemon host string
-func ParseHost(defaultToTLS bool, val string) (string, error) {
+func ParseHost(defaultToTLS bool, val string, rootlessMode bool) (string, error) {
 	host := strings.TrimSpace(val)
 	if host == "" {
 		if defaultToTLS {
 			host = DefaultTLSHost
 		} else {
-			host = DefaultHost
+			if rootlessMode {
+				host = "unix://" + DefaultUserUnixSocket
+			} else {
+				host = DefaultHost
+			}
 		}
 	} else {
 		var err error

@@ -1,0 +1,33 @@
+#!/bin/sh
+
+
+VPNKIT_COMMIT=bbedcf42d9e6ba0afba65aca18dd5fc087192b13
+
+# FIXME: vpnkit requires non-glibc system (e.g. Alpine) for static build. (https://github.com/moby/vpnkit/issues/407)
+# OTOH a dynamic binary built with musl libc is useless for glibc-based systems.
+# Currently, we always build vpnkit as a static binary so that it works on any distro.
+#
+# TODO: consider fetching pre-built binaries
+install_vpnkit() {
+	  echo "Install vpnkit version $VPNKIT_COMMIT (FIXME: always built as a static binary)"
+	  git clone https://github.com/moby/vpnkit.git
+	  cd vpnkit
+	  git checkout -q "$VPNKIT_COMMIT"
+	  cat <<EOF | patch -p1
+diff --git a/src/bin/jbuild b/src/bin/jbuild
+index b850dc4..28d0639 100644
+--- a/src/bin/jbuild
++++ b/src/bin/jbuild
+@@ -7,6 +7,7 @@
+      datakit-server-9p win-eventlog asl fd-send-recv duration
+      mirage-clock-unix mirage-random
+    ))
++   (flags (:standard -ccopt -static))
+    (preprocess  no_preprocessing)))
+ 
+ (rule
+EOF
+	  make
+	  mkdir -p ${PREFIX}
+	  cp vpnkit.exe ${PREFIX}/docker-vpnkit
+}
