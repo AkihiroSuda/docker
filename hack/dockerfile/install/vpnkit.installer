@@ -1,0 +1,15 @@
+#!/bin/sh
+
+
+VPNKIT_COMMIT=2d23d332c2232cbde1f9d0243e29b5635092de13
+
+# FIXME: always built as a dynamic binary (how to build a static one?)
+install_vpnkit() {
+	  echo "Install vpnkit version $VPNKIT_COMMIT (FIXME: always built as a dynamic binary)"
+	  git clone https://github.com/moby/vpnkit.git
+	  cd vpnkit
+	  git checkout -q "$VPNKIT_COMMIT"
+	  make
+	  mkdir -p ${PREFIX}
+	  cp vpnkit.exe ${PREFIX}/docker-vpnkit
+}
