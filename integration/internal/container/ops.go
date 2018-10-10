@@ -5,6 +5,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 )
@@ -65,6 +66,13 @@ func WithTty(tty bool) func(*TestContainerConfig) {
 func WithWorkingDir(dir string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.Config.WorkingDir = dir
+	}
+}
+
+// WithMount adds an mount
+func WithMount(m mounttypes.Mount) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.Mounts = append(c.HostConfig.Mounts, m)
 	}
 }
 

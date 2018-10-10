@@ -9,4 +9,5 @@ type Mount struct {
 	Writable    bool   `json:"writable"`
 	Data        string `json:"data"`
 	Propagation string `json:"mountpropagation"`
+	NoRecursive bool   `json:"norecursive"`
 }

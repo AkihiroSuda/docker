@@ -321,6 +321,12 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			} else if string(m.BindOptions.Propagation) != "" {
 				return nil, fmt.Errorf("invalid MountPropagation: %q", m.BindOptions.Propagation)
 			}
+
+			if m.BindOptions.NoRecursive {
+				// TODO(AkihiroSuda): NoRecursive is unsupported for Swarm-mode now because of mutual vendoring
+				// across moby and swarmkit. Will be available soon after the moby PR gets merged.
+				return nil, fmt.Errorf("invalid NoRecursive: %q", m.BindOptions.Propagation)
+			}
 		}
 
 		if m.VolumeOptions != nil {

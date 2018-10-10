@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/mount"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	volumemounts "github.com/docker/docker/volume/mounts"
 )
 
@@ -52,11 +53,13 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 			return nil, err
 		}
 		if !c.TrySetNetworkMount(m.Destination, path) {
+			noRecursive := m.Spec.Type == mounttypes.TypeBind && m.Spec.BindOptions != nil && m.Spec.BindOptions.NoRecursive
 			mnt := container.Mount{
 				Source:      path,
 				Destination: m.Destination,
 				Writable:    m.RW,
 				Propagation: string(m.Propagation),
+				NoRecursive: noRecursive,
 			}
 			if m.Volume != nil {
 				attributes := map[string]string{
@@ -129,9 +132,13 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 			return err
 		}
 
-		opts := "rbind,ro"
+		bindMode := "rbind"
+		if m.NoRecursive {
+			bindMode = "bind"
+		}
+		opts := bindMode+",ro"
 		if m.Writable {
-			opts = "rbind,rw"
+			opts = bindMode+",rw"
 		}
 
 		if err := mount.Mount(m.Source, dest, bindMountType, opts); err != nil {
