@@ -1,0 +1,27 @@
+#!/bin/sh
+
+SLIRP4NETNS_COMMIT=39e87c0e66345edf7fd6e0bd1f61aa842617e757
+install_slirp4netns() {
+    case "$1" in
+        "dynamic")
+            CONFIGURE_FLAGS=""
+            ;;
+        "")
+            CONFIGURE_FLAGS="LDFLAGS=-static"
+            ;;
+        *)
+            echo 'Usage: $0 [dynamic]'
+            ;;
+	  esac
+	  echo "Install docker-slirp4netns version $SLIRP4NETNS_COMMIT"
+	  git clone https://github.com/rootless-containers/slirp4netns.git "$GOPATH/src/github.com/rootless-containers/slirp4netns"
+	  cd "$GOPATH/src/github.com/rootless-containers/slirp4netns"
+	  git checkout -q "$SLIRP4NETNS_COMMIT"
+	  ./autogen.sh
+    ./configure ${CONFIGURE_FLAGS}
+    make
+    mkdir -p ${PREFIX}
+    cp slirp4netns ${PREFIX}/slirp4netns
+    # GPL v2
+    cp COPYING ${PREFIX}/slirp4netns.LICENSE
+}
