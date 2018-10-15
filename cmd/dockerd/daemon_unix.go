@@ -9,17 +9,37 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/containerd/containerd/runtime/v1/linux"
 	"github.com/docker/docker/cmd/dockerd/hack"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
+	"github.com/docker/docker/rootless"
 	"github.com/docker/libnetwork/portallocator"
 	"golang.org/x/sys/unix"
 )
 
-const defaultDaemonConfigFile = "/etc/docker/daemon.json"
+var (
+	defaultDaemonConfigDir  = "/etc/docker"
+	defaultDaemonConfigFile = "/etc/docker/daemon.json"
+)
+
+func init() {
+	if rootless.RunningWithNonRootUsername {
+		// NOTE: CLI uses ~/.docker while the daemon uses ~/.config/docker, because
+		// ~/.docker was not designed to store daemon configurations.
+		// In future, the daemon directory may be renamed to ~/.config/moby-engine (?).
+		if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+			dirs := strings.Split(xdgConfigHome, ":")
+			defaultDaemonConfigDir = filepath.Join(dirs[0], "docker")
+		} else if home := os.Getenv("HOME"); home != "" {
+			defaultDaemonConfigDir = filepath.Join(home, ".config", "docker")
+		}
+		defaultDaemonConfigFile = filepath.Join(defaultDaemonConfigDir, "daemon.json")
+	}
+}
 
 // setDefaultUmask sets the umask to 0022 to avoid problems
 // caused by custom umask
@@ -34,7 +54,7 @@ func setDefaultUmask() error {
 }
 
 func getDaemonConfDir(_ string) string {
-	return "/etc/docker"
+	return defaultDaemonConfigDir
 }
 
 func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {

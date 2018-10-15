@@ -46,6 +46,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
+	"github.com/docker/docker/rootless"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -92,6 +93,17 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	if cli.Config.Experimental {
 		logrus.Warn("Running experimental build")
+	}
+	// return human-friendly error before creating files
+	if runtime.GOOS == "linux" && os.Geteuid() != 0 {
+		return fmt.Errorf("rootless mode needs dockerd to be executed in userns")
+	}
+	if cli.Config.Rootless {
+		logrus.Warn("Running in rootless mode (experimental). Cgroups, AppArmor, and CRIU are not likely to work.")
+		if !cli.Config.Experimental {
+			return fmt.Errorf("rootless mode is only supported when experimental is enabled")
+		}
+		// TODO: make sure mountns and netns are unshared.
 	}
 
 	logrus.SetFormatter(&logrus.TextFormatter{
@@ -589,7 +601,7 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 	var hosts []string
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
-		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
+		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i], rootless.RunningWithNonRootUsername); err != nil {
 			return nil, errors.Wrapf(err, "error parsing -H %s", cli.Config.Hosts[i])
 		}
 

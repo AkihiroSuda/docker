@@ -39,6 +39,7 @@ type Config struct {
 	IpcMode              string                   `json:"default-ipc-mode,omitempty"`
 	// ResolvConf is the path to the configuration of the host resolver
 	ResolvConf string `json:"resolv-conf,omitempty"`
+	Rootless   bool   `json:"bool,omitempty"`
 }
 
 // BridgeConfig stores all the bridge driver specific

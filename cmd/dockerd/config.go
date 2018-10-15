@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/rootless"
 	"github.com/spf13/pflag"
 )
 
@@ -80,6 +81,10 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 
 	conf.MaxConcurrentDownloads = &maxConcurrentDownloads
 	conf.MaxConcurrentUploads = &maxConcurrentUploads
+
+	// Mostly users don't need to set this flag explicitly.
+	// However, when running Docker as the mapped root with in a rootless Docker, users might need to set this flag explicitly.
+	flags.BoolVar(&conf.Rootless, "rootless", rootless.RunningWithNonRootUsername, "Enable rootless mode (experimental)")
 }
 
 func installRegistryServiceFlags(options *registry.ServiceOptions, flags *pflag.FlagSet) {
