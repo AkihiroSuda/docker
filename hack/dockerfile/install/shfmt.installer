@@ -1,0 +1,10 @@
+#!/bin/sh
+
+SHFMT_COMMIT=6ff14a8080445e472ff16e3423c46f4f84f5dfae
+
+install_gometalinter() {
+	echo "Installing shfmt version $SHFMT_COMMIT"
+	git clone https://mvdan.cc/sh/cmd/gosh.git "$GOPATH/src/mvdan.cc/sh"
+	cd "$GOPATH/src/mvdan.cc/sh" && git checkout -q "$SHFMT_COMMIT"
+	go build -buildmode=pie -o ${PREFIX}/shfmt mvdan.cc/sh/cmd/gosh
+}

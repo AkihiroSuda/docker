@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -e -o pipefail
+
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# NOTE: `git grep -e '^#!'` may also pick up non-shell script files.
+# Please add `| grep -v exceptional_file.foo` if any false-positive is detected.
+git grep --name-only -e '^#!' | xargs shfmt -d
