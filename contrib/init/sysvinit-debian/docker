@@ -61,9 +61,9 @@ fail_unless_root() {
 
 cgroupfs_mount() {
 	# see also https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount
-	if grep -v '^#' /etc/fstab | grep -q cgroup \
-		|| [ ! -e /proc/cgroups ] \
-		|| [ ! -d /sys/fs/cgroup ]; then
+	if grep -v '^#' /etc/fstab | grep -q cgroup ||
+		[ ! -e /proc/cgroups ] ||
+		[ ! -d /sys/fs/cgroup ]; then
 		return
 	fi
 	if ! mountpoint -q /sys/fs/cgroup; then
@@ -83,74 +83,74 @@ cgroupfs_mount() {
 }
 
 case "$1" in
-	start)
-		check_init
-		
-		fail_unless_root
+start)
+	check_init
 
-		cgroupfs_mount
+	fail_unless_root
 
-		touch "$DOCKER_LOGFILE"
-		chgrp docker "$DOCKER_LOGFILE"
+	cgroupfs_mount
 
-		ulimit -n 1048576
+	touch "$DOCKER_LOGFILE"
+	chgrp docker "$DOCKER_LOGFILE"
 
-		# Having non-zero limits causes performance problems due to accounting overhead
-		# in the kernel. We recommend using cgroups to do container-local accounting.
-		if [ "$BASH" ]; then
-			ulimit -u unlimited
-		else
-			ulimit -p unlimited
-		fi
+	ulimit -n 1048576
 
-		log_begin_msg "Starting $DOCKER_DESC: $BASE"
-		start-stop-daemon --start --background \
-			--no-close \
-			--exec "$DOCKERD" \
-			--pidfile "$DOCKER_SSD_PIDFILE" \
-			--make-pidfile \
-			-- \
-				-p "$DOCKER_PIDFILE" \
-				$DOCKER_OPTS \
-					>> "$DOCKER_LOGFILE" 2>&1
+	# Having non-zero limits causes performance problems due to accounting overhead
+	# in the kernel. We recommend using cgroups to do container-local accounting.
+	if [ "$BASH" ]; then
+		ulimit -u unlimited
+	else
+		ulimit -p unlimited
+	fi
+
+	log_begin_msg "Starting $DOCKER_DESC: $BASE"
+	start-stop-daemon --start --background \
+		--no-close \
+		--exec "$DOCKERD" \
+		--pidfile "$DOCKER_SSD_PIDFILE" \
+		--make-pidfile \
+		-- \
+		-p "$DOCKER_PIDFILE" \
+		$DOCKER_OPTS \
+		>>"$DOCKER_LOGFILE" 2>&1
+	log_end_msg $?
+	;;
+
+stop)
+	check_init
+	fail_unless_root
+	if [ -f "$DOCKER_SSD_PIDFILE" ]; then
+		log_begin_msg "Stopping $DOCKER_DESC: $BASE"
+		start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --retry 10
 		log_end_msg $?
-		;;
+	else
+		log_warning_msg "Docker already stopped - file $DOCKER_SSD_PIDFILE not found."
+	fi
+	;;
 
-	stop)
-		check_init
-		fail_unless_root
-		if [ -f "$DOCKER_SSD_PIDFILE" ]; then
-			log_begin_msg "Stopping $DOCKER_DESC: $BASE"
-			start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --retry 10
-			log_end_msg $?
-		else
-			log_warning_msg "Docker already stopped - file $DOCKER_SSD_PIDFILE not found."
-		fi
-		;;
+restart)
+	check_init
+	fail_unless_root
+	docker_pid=$(cat "$DOCKER_SSD_PIDFILE" 2>/dev/null)
+	[ -n "$docker_pid" ] &&
+		ps -p $docker_pid >/dev/null 2>&1 &&
+		$0 stop
+	$0 start
+	;;
 
-	restart)
-		check_init
-		fail_unless_root
-		docker_pid=`cat "$DOCKER_SSD_PIDFILE" 2>/dev/null`
-		[ -n "$docker_pid" ] \
-			&& ps -p $docker_pid > /dev/null 2>&1 \
-			&& $0 stop
-		$0 start
-		;;
+force-reload)
+	check_init
+	fail_unless_root
+	$0 restart
+	;;
 
-	force-reload)
-		check_init
-		fail_unless_root
-		$0 restart
-		;;
+status)
+	check_init
+	status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKERD" "$DOCKER_DESC"
+	;;
 
-	status)
-		check_init
-		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKERD" "$DOCKER_DESC"
-		;;
-
-	*)
-		echo "Usage: service docker {start|stop|restart|status}"
-		exit 1
-		;;
+*)
+	echo "Usage: service docker {start|stop|restart|status}"
+	exit 1
+	;;
 esac

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Make sure we're not using gos' Testing package any more in integration-cli
 
-export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
-files=( $(validate_diff --diff-filter=ACMR --name-only -- 'integration-cli/*.go' || true) )
+files=($(validate_diff --diff-filter=ACMR --name-only -- 'integration-cli/*.go' || true))
 unset IFS
 
 badFiles=()
@@ -19,7 +19,7 @@ for f in "${files[@]}"; do
 	if git show "$VALIDATE_HEAD:$f" | grep -q testing.T; then
 		if [ "$(echo $f | grep '_test')" ]; then
 			# allow testing.T for non- _test files
-			badFiles+=( "$f" )
+			badFiles+=("$f")
 		fi
 	fi
 done

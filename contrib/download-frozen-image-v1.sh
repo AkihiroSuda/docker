@@ -7,7 +7,7 @@ set -e
 # debian                           latest              f6fab3b798be        10 weeks ago        85.1 MB
 # debian                           latest              f6fab3b798be3174f45aa1eb731f8182705555f89c9026d8c1ef230cbf8301dd   10 weeks ago        85.1 MB
 
-if ! command -v curl &> /dev/null; then
+if ! command -v curl &>/dev/null; then
 	echo >&2 'error: "curl" not found!'
 	exit 1
 fi
@@ -59,20 +59,20 @@ while [ $# -gt 0 ]; do
 	fi
 
 	IFS=','
-	ancestry=( ${ancestryJson//[\[\] \"]/} )
+	ancestry=(${ancestryJson//[\[\] \"]/})
 	unset IFS
 
 	if [ -s "$dir/tags-$imageFile.tmp" ]; then
-		echo -n ', ' >> "$dir/tags-$imageFile.tmp"
+		echo -n ', ' >>"$dir/tags-$imageFile.tmp"
 	else
-		images=( "${images[@]}" "$image" )
+		images=("${images[@]}" "$image")
 	fi
-	echo -n '"'"$tag"'": "'"$imageId"'"' >> "$dir/tags-$imageFile.tmp"
+	echo -n '"'"$tag"'": "'"$imageId"'"' >>"$dir/tags-$imageFile.tmp"
 
 	echo "Downloading '$imageTag' (${#ancestry[@]} layers)..."
 	for imageId in "${ancestry[@]}"; do
 		mkdir -p "$dir/$imageId"
-		echo '1.0' > "$dir/$imageId/VERSION"
+		echo '1.0' >"$dir/$imageId/VERSION"
 
 		curl -sSL -H "Authorization: Token $token" "https://registry-1.docker.io/v1/images/$imageId/json" -o "$dir/$imageId/json"
 
@@ -89,17 +89,17 @@ while [ $# -gt 0 ]; do
 	echo
 done
 
-echo -n '{' > "$dir/repositories"
+echo -n '{' >"$dir/repositories"
 firstImage=1
 for image in "${images[@]}"; do
 	imageFile="${image//\//_}" # "/" can't be in filenames :)
 
-	[ "$firstImage" ] || echo -n ',' >> "$dir/repositories"
+	[ "$firstImage" ] || echo -n ',' >>"$dir/repositories"
 	firstImage=
-	echo -n $'\n\t' >> "$dir/repositories"
-	echo -n '"'"$image"'": { '"$(cat "$dir/tags-$imageFile.tmp")"' }' >> "$dir/repositories"
+	echo -n $'\n\t' >>"$dir/repositories"
+	echo -n '"'"$image"'": { '"$(cat "$dir/tags-$imageFile.tmp")"' }' >>"$dir/repositories"
 done
-echo -n $'\n}\n' >> "$dir/repositories"
+echo -n $'\n}\n' >>"$dir/repositories"
 
 rm -f "$dir"/tags-*.tmp
 

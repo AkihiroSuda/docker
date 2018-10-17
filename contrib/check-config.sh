@@ -19,7 +19,7 @@ else
 	: ${CONFIG:="${possibleConfigs[0]}"}
 fi
 
-if ! command -v zgrep &> /dev/null; then
+if ! command -v zgrep &>/dev/null; then
 	zgrep() {
 		zcat "$2" | grep "$1"
 	}
@@ -31,36 +31,36 @@ kernelMinor="${kernelVersion#$kernelMajor.}"
 kernelMinor="${kernelMinor%%.*}"
 
 is_set() {
-	zgrep "CONFIG_$1=[y|m]" "$CONFIG" > /dev/null
+	zgrep "CONFIG_$1=[y|m]" "$CONFIG" >/dev/null
 }
 is_set_in_kernel() {
-	zgrep "CONFIG_$1=y" "$CONFIG" > /dev/null
+	zgrep "CONFIG_$1=y" "$CONFIG" >/dev/null
 }
 is_set_as_module() {
-	zgrep "CONFIG_$1=m" "$CONFIG" > /dev/null
+	zgrep "CONFIG_$1=m" "$CONFIG" >/dev/null
 }
 
 color() {
 	local codes=()
 	if [ "$1" = 'bold' ]; then
-		codes=( "${codes[@]}" '1' )
+		codes=("${codes[@]}" '1')
 		shift
 	fi
 	if [ "$#" -gt 0 ]; then
 		local code=
 		case "$1" in
-			# see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-			black) code=30 ;;
-			red) code=31 ;;
-			green) code=32 ;;
-			yellow) code=33 ;;
-			blue) code=34 ;;
-			magenta) code=35 ;;
-			cyan) code=36 ;;
-			white) code=37 ;;
+		# see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+		black) code=30 ;;
+		red) code=31 ;;
+		green) code=32 ;;
+		yellow) code=33 ;;
+		blue) code=34 ;;
+		magenta) code=35 ;;
+		cyan) code=36 ;;
+		white) code=37 ;;
 		esac
 		if [ "$code" ]; then
-			codes=( "${codes[@]}" "$code" )
+			codes=("${codes[@]}" "$code")
 		fi
 	fi
 	local IFS=';'
@@ -98,7 +98,8 @@ check_flag() {
 
 check_flags() {
 	for flag in "$@"; do
-		echo -n "- "; check_flag "$flag"
+		echo -n "- "
+		check_flag "$flag"
 	done
 }
 
@@ -170,14 +171,14 @@ fi
 
 if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
 	echo -n '- '
-	if command -v apparmor_parser &> /dev/null; then
+	if command -v apparmor_parser &>/dev/null; then
 		echo "$(wrap_good 'apparmor' 'enabled and tools installed')"
 	else
 		echo "$(wrap_bad 'apparmor' 'enabled, but apparmor_parser missing')"
 		echo -n '    '
-		if command -v apt-get &> /dev/null; then
+		if command -v apt-get &>/dev/null; then
 			echo "$(wrap_color '(use "apt-get install apparmor" to fix this)')"
-		elif command -v yum &> /dev/null; then
+		elif command -v yum &>/dev/null; then
 			echo "$(wrap_color '(your best bet is "yum install apparmor-parser")')"
 		else
 			echo "$(wrap_color '(look for an "apparmor" package for your distribution)')"
@@ -200,7 +201,7 @@ flags=(
 )
 check_flags "${flags[@]}"
 if [ "$kernelMajor" -lt 4 ] || [ "$kernelMajor" -eq 4 -a "$kernelMinor" -lt 8 ]; then
-        check_flags DEVPTS_MULTIPLE_INSTANCES
+	check_flags DEVPTS_MULTIPLE_INSTANCES
 fi
 
 echo
@@ -228,20 +229,23 @@ echo 'Optional Features:'
 }
 {
 	if is_set LEGACY_VSYSCALL_NATIVE; then
-		echo -n "- "; wrap_bad "CONFIG_LEGACY_VSYSCALL_NATIVE" 'enabled'
+		echo -n "- "
+		wrap_bad "CONFIG_LEGACY_VSYSCALL_NATIVE" 'enabled'
 		echo "    $(wrap_color '(dangerous, provides an ASLR-bypassing target with usable ROP gadgets.)' bold black)"
 	elif is_set LEGACY_VSYSCALL_EMULATE; then
-		echo -n "- "; wrap_good "CONFIG_LEGACY_VSYSCALL_EMULATE" 'enabled'
+		echo -n "- "
+		wrap_good "CONFIG_LEGACY_VSYSCALL_EMULATE" 'enabled'
 	elif is_set LEGACY_VSYSCALL_NONE; then
-		echo -n "- "; wrap_bad "CONFIG_LEGACY_VSYSCALL_NONE" 'enabled'
+		echo -n "- "
+		wrap_bad "CONFIG_LEGACY_VSYSCALL_NONE" 'enabled'
 		echo "    $(wrap_color '(containers using eglibc <= 2.13 will not work. Switch to' bold black)"
 		echo "    $(wrap_color ' "CONFIG_VSYSCALL_[NATIVE|EMULATE]" or use "vsyscall=[native|emulate]"' bold black)"
 		echo "    $(wrap_color ' on kernel command line. Note that this will disable ASLR for the,' bold black)"
 		echo "    $(wrap_color ' VDSO which may assist in exploiting security vulnerabilities.)' bold black)"
-	# else Older kernels (prior to 3dc33bd30f3e, released in v4.40-rc1) do
-	#      not have these LEGACY_VSYSCALL options and are effectively
-	#      LEGACY_VSYSCALL_EMULATE. Even older kernels are presumably
-	#      effectively LEGACY_VSYSCALL_NATIVE.
+		# else Older kernels (prior to 3dc33bd30f3e, released in v4.40-rc1) do
+		#      not have these LEGACY_VSYSCALL options and are effectively
+		#      LEGACY_VSYSCALL_EMULATE. Even older kernels are presumably
+		#      effectively LEGACY_VSYSCALL_NATIVE.
 	fi
 }
 
@@ -267,7 +271,7 @@ flags=(
 	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
 	IP_VS
 	IP_VS_NFCT
- 	IP_VS_RR
+	IP_VS_RR
 )
 check_flags "${flags[@]}"
 
@@ -292,7 +296,7 @@ echo '  - "'$(wrap_color 'overlay' blue)'":'
 check_flags VXLAN | sed 's/^/    /'
 echo '      Optional (for encrypted networks):'
 check_flags CRYPTO CRYPTO_AEAD CRYPTO_GCM CRYPTO_SEQIV CRYPTO_GHASH \
-            XFRM XFRM_USER XFRM_ALGO INET_ESP INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
+	XFRM XFRM_USER XFRM_ALGO INET_ESP INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
 echo '  - "'$(wrap_color 'ipvlan' blue)'":'
 check_flags IPVLAN | sed 's/^/    /'
 echo '  - "'$(wrap_color 'macvlan' blue)'":'
@@ -331,9 +335,12 @@ check_flags OVERLAY_FS | sed 's/^/    /'
 EXITCODE=0
 
 echo '  - "'$(wrap_color 'zfs' blue)'":'
-echo -n "    - "; check_device /dev/zfs
-echo -n "    - "; check_command zfs
-echo -n "    - "; check_command zpool
+echo -n "    - "
+check_device /dev/zfs
+echo -n "    - "
+check_command zfs
+echo -n "    - "
+check_command zpool
 [ "$EXITCODE" = 0 ] && STORAGE=0
 EXITCODE=0
 
@@ -342,8 +349,7 @@ EXITCODE=$CODE
 
 echo
 
-check_limit_over()
-{
+check_limit_over() {
 	if [ $(cat "$1") -le "$2" ]; then
 		wrap_bad "- $1" "$(cat $1)"
 		wrap_color "    This should be set to at least $2, for example set: sysctl -w kernel/keys/root_maxkeys=1000000" bold black

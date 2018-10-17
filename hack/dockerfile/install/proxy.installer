@@ -7,17 +7,17 @@ LIBNETWORK_COMMIT=d7b61745d16675c9f548b19f06fda80d422a74f0
 
 install_proxy() {
 	case "$1" in
-		"dynamic")
-			install_proxy_dynamic
-			return
-			;;
-		"")
-			export CGO_ENABLED=0
-			_install_proxy
-			;;
-		*)
-			echo 'Usage: $0 [dynamic]'
-			;;
+	"dynamic")
+		install_proxy_dynamic
+		return
+		;;
+	"")
+		export CGO_ENABLED=0
+		_install_proxy
+		;;
+	*)
+		echo 'Usage: $0 [dynamic]'
+		;;
 	esac
 }
 
@@ -34,5 +34,3 @@ _install_proxy() {
 	git checkout -q "$LIBNETWORK_COMMIT"
 	go build $BUILD_MODE -ldflags="$PROXY_LDFLAGS" -o ${PREFIX}/docker-proxy github.com/docker/libnetwork/cmd/proxy
 }
-
-

@@ -15,7 +15,7 @@ shift
 
 if [ -d "$rootfsDir/etc/sysconfig" ]; then
 	# allow networking init scripts inside the container to work without extra steps
-	echo 'NETWORKING=yes' > "$rootfsDir/etc/sysconfig/network"
+	echo 'NETWORKING=yes' >"$rootfsDir/etc/sysconfig/network"
 fi
 
 # make sure we're fully up-to-date, too

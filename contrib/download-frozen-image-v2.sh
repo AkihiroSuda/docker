@@ -6,11 +6,11 @@ set -eo pipefail
 
 # debian                           latest              f6fab3b798be        10 weeks ago        85.1 MB
 # debian                           latest              f6fab3b798be3174f45aa1eb731f8182705555f89c9026d8c1ef230cbf8301dd   10 weeks ago        85.1 MB
-if ! command -v curl &> /dev/null; then
+if ! command -v curl &>/dev/null; then
 	echo >&2 'error: "curl" not found!'
 	exit 1
 fi
-if ! command -v jq &> /dev/null; then
+if ! command -v jq &>/dev/null; then
 	echo >&2 'error: "jq" not found!'
 	exit 1
 fi
@@ -49,11 +49,15 @@ authService='registry.docker.io'
 
 # https://github.com/moby/moby/issues/33700
 fetch_blob() {
-	local token="$1"; shift
-	local image="$1"; shift
-	local digest="$1"; shift
-	local targetFile="$1"; shift
-	local curlArgs=( "$@" )
+	local token="$1"
+	shift
+	local image="$1"
+	shift
+	local digest="$1"
+	shift
+	local targetFile="$1"
+	shift
+	local curlArgs=("$@")
 
 	local curlHeaders="$(
 		curl -S "${curlArgs[@]}" \
@@ -81,7 +85,8 @@ fetch_blob() {
 
 # handle 'application/vnd.docker.distribution.manifest.v2+json' manifest
 handle_single_manifest_v2() {
-	local manifestJson="$1"; shift
+	local manifestJson="$1"
+	shift
 
 	local configDigest="$(echo "$manifestJson" | jq --raw-output '.config.digest')"
 	local imageId="${configDigest#*:}" # strip off "sha256:"
@@ -91,7 +96,7 @@ handle_single_manifest_v2() {
 
 	local layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.layers[]')"
 	local IFS="$newlineIFS"
-	local layers=( $layersFs )
+	local layers=($layersFs)
 	unset IFS
 
 	echo "Downloading '$imageIdentifier' (${#layers[@]} layers)..."
@@ -110,58 +115,58 @@ handle_single_manifest_v2() {
 		# this accounts for the possibility that an image contains the same layer twice (and thus has a duplicate digest value)
 
 		mkdir -p "$dir/$layerId"
-		echo '1.0' > "$dir/$layerId/VERSION"
+		echo '1.0' >"$dir/$layerId/VERSION"
 
 		if [ ! -s "$dir/$layerId/json" ]; then
 			local parentJson="$(printf ', parent: "%s"' "$parentId")"
 			local addJson="$(printf '{ id: "%s"%s }' "$layerId" "${parentId:+$parentJson}")"
 			# this starter JSON is taken directly from Docker's own "docker save" output for unimportant layers
-			jq "$addJson + ." > "$dir/$layerId/json" <<-'EOJSON'
+			jq "$addJson + ." >"$dir/$layerId/json" <<-'EOJSON'
 				{
-					"created": "0001-01-01T00:00:00Z",
-					"container_config": {
-						"Hostname": "",
-						"Domainname": "",
-						"User": "",
-						"AttachStdin": false,
-						"AttachStdout": false,
-						"AttachStderr": false,
-						"Tty": false,
-						"OpenStdin": false,
-						"StdinOnce": false,
-						"Env": null,
-						"Cmd": null,
-						"Image": "",
-						"Volumes": null,
-						"WorkingDir": "",
-						"Entrypoint": null,
-						"OnBuild": null,
-						"Labels": null
-					}
+				"created": "0001-01-01T00:00:00Z",
+				"container_config": {
+				"Hostname": "",
+				"Domainname": "",
+				"User": "",
+				"AttachStdin": false,
+				"AttachStdout": false,
+				"AttachStderr": false,
+				"Tty": false,
+				"OpenStdin": false,
+				"StdinOnce": false,
+				"Env": null,
+				"Cmd": null,
+				"Image": "",
+				"Volumes": null,
+				"WorkingDir": "",
+				"Entrypoint": null,
+				"OnBuild": null,
+				"Labels": null
+				}
 				}
 			EOJSON
 		fi
 
 		case "$layerMediaType" in
-			application/vnd.docker.image.rootfs.diff.tar.gzip)
-				local layerTar="$layerId/layer.tar"
-				layerFiles=( "${layerFiles[@]}" "$layerTar" )
-				# TODO figure out why "-C -" doesn't work here
-				# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
-				# "HTTP/1.1 416 Requested Range Not Satisfiable"
-				if [ -f "$dir/$layerTar" ]; then
-					# TODO hackpatch for no -C support :'(
-					echo "skipping existing ${layerId:0:12}"
-					continue
-				fi
-				local token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
-				fetch_blob "$token" "$image" "$layerDigest" "$dir/$layerTar" --progress
-				;;
+		application/vnd.docker.image.rootfs.diff.tar.gzip)
+			local layerTar="$layerId/layer.tar"
+			layerFiles=("${layerFiles[@]}" "$layerTar")
+			# TODO figure out why "-C -" doesn't work here
+			# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
+			# "HTTP/1.1 416 Requested Range Not Satisfiable"
+			if [ -f "$dir/$layerTar" ]; then
+				# TODO hackpatch for no -C support :'(
+				echo "skipping existing ${layerId:0:12}"
+				continue
+			fi
+			local token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
+			fetch_blob "$token" "$image" "$layerDigest" "$dir/$layerTar" --progress
+			;;
 
-			*)
-				echo >&2 "error: unknown layer mediaType ($imageIdentifier, $layerDigest): '$layerMediaType'"
-				exit 1
-				;;
+		*)
+			echo >&2 "error: unknown layer mediaType ($imageIdentifier, $layerDigest): '$layerMediaType'"
+			exit 1
+			;;
 		esac
 	done
 
@@ -170,7 +175,7 @@ handle_single_manifest_v2() {
 
 	# munge the top layer image manifest to have the appropriate image configuration for older daemons
 	local imageOldConfig="$(jq --raw-output --compact-output '{ id: .id } + if .parent then { parent: .parent } else {} end' "$dir/$imageId/json")"
-	jq --raw-output "$imageOldConfig + del(.history, .rootfs)" "$dir/$configFile" > "$dir/$imageId/json"
+	jq --raw-output "$imageOldConfig + del(.history, .rootfs)" "$dir/$configFile" >"$dir/$imageId/json"
 
 	local manifestJsonEntry="$(
 		echo '{}' | jq --raw-output '. + {
@@ -179,7 +184,7 @@ handle_single_manifest_v2() {
 			Layers: '"$(echo '[]' | jq --raw-output ".$(for layerFile in "${layerFiles[@]}"; do echo " + [ \"$layerFile\" ]"; done)")"'
 		}'
 	)"
-	manifestJsonEntries=( "${manifestJsonEntries[@]}" "$manifestJsonEntry" )
+	manifestJsonEntries=("${manifestJsonEntries[@]}" "$manifestJsonEntry")
 }
 
 while [ $# -gt 0 ]; do
@@ -217,125 +222,125 @@ while [ $# -gt 0 ]; do
 
 	schemaVersion="$(echo "$manifestJson" | jq --raw-output '.schemaVersion')"
 	case "$schemaVersion" in
-		2)
-			mediaType="$(echo "$manifestJson" | jq --raw-output '.mediaType')"
+	2)
+		mediaType="$(echo "$manifestJson" | jq --raw-output '.mediaType')"
 
-			case "$mediaType" in
-				application/vnd.docker.distribution.manifest.v2+json)
-					handle_single_manifest_v2 "$manifestJson"
-					;;
-				application/vnd.docker.distribution.manifest.list.v2+json)
-					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.manifests[]')"
-					IFS="$newlineIFS"
-					layers=( $layersFs )
-					unset IFS
-
-					found=""
-					# parse first level multi-arch manifest
-					for i in "${!layers[@]}"; do
-						layerMeta="${layers[$i]}"
-						maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
-						if [ "$maniArch" = "$(go env GOARCH)" ]; then
-							digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
-							# get second level single manifest
-							submanifestJson="$(
-								curl -fsSL \
-									-H "Authorization: Bearer $token" \
-									-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
-									-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
-									-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
-									"$registryBase/v2/$image/manifests/$digest"
-							)"
-							handle_single_manifest_v2 "$submanifestJson"
-							found="found"
-							break
-						fi
-					done
-					if [ -z "$found" ]; then
-						echo >&2 "error: manifest for $maniArch is not found"
-						exit 1
-					fi
-					;;
-				*)
-					echo >&2 "error: unknown manifest mediaType ($imageIdentifier): '$mediaType'"
-					exit 1
-					;;
-			esac
+		case "$mediaType" in
+		application/vnd.docker.distribution.manifest.v2+json)
+			handle_single_manifest_v2 "$manifestJson"
 			;;
-
-		1)
-			if [ -z "$doNotGenerateManifestJson" ]; then
-				echo >&2 "warning: '$imageIdentifier' uses schemaVersion '$schemaVersion'"
-				echo >&2 "  this script cannot (currently) recreate the 'image config' to put in a 'manifest.json' (thus any schemaVersion 2+ images will be imported in the old way, and their 'docker history' will suffer)"
-				echo >&2
-				doNotGenerateManifestJson=1
-			fi
-
-			layersFs="$(echo "$manifestJson" | jq --raw-output '.fsLayers | .[] | .blobSum')"
+		application/vnd.docker.distribution.manifest.list.v2+json)
+			layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.manifests[]')"
 			IFS="$newlineIFS"
-			layers=( $layersFs )
+			layers=($layersFs)
 			unset IFS
 
-			history="$(echo "$manifestJson" | jq '.history | [.[] | .v1Compatibility]')"
-			imageId="$(echo "$history" | jq --raw-output '.[0]' | jq --raw-output '.id')"
-
-			echo "Downloading '$imageIdentifier' (${#layers[@]} layers)..."
+			found=""
+			# parse first level multi-arch manifest
 			for i in "${!layers[@]}"; do
-				imageJson="$(echo "$history" | jq --raw-output ".[${i}]")"
-				layerId="$(echo "$imageJson" | jq --raw-output '.id')"
-				imageLayer="${layers[$i]}"
-
-				mkdir -p "$dir/$layerId"
-				echo '1.0' > "$dir/$layerId/VERSION"
-
-				echo "$imageJson" > "$dir/$layerId/json"
-
-				# TODO figure out why "-C -" doesn't work here
-				# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
-				# "HTTP/1.1 416 Requested Range Not Satisfiable"
-				if [ -f "$dir/$layerId/layer.tar" ]; then
-					# TODO hackpatch for no -C support :'(
-					echo "skipping existing ${layerId:0:12}"
-					continue
+				layerMeta="${layers[$i]}"
+				maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
+				if [ "$maniArch" = "$(go env GOARCH)" ]; then
+					digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
+					# get second level single manifest
+					submanifestJson="$(
+						curl -fsSL \
+							-H "Authorization: Bearer $token" \
+							-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+							-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+							-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
+							"$registryBase/v2/$image/manifests/$digest"
+					)"
+					handle_single_manifest_v2 "$submanifestJson"
+					found="found"
+					break
 				fi
-				token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
-				fetch_blob "$token" "$image" "$imageLayer" "$dir/$layerId/layer.tar" --progress
 			done
+			if [ -z "$found" ]; then
+				echo >&2 "error: manifest for $maniArch is not found"
+				exit 1
+			fi
 			;;
-
 		*)
-			echo >&2 "error: unknown manifest schemaVersion ($imageIdentifier): '$schemaVersion'"
+			echo >&2 "error: unknown manifest mediaType ($imageIdentifier): '$mediaType'"
 			exit 1
 			;;
+		esac
+		;;
+
+	1)
+		if [ -z "$doNotGenerateManifestJson" ]; then
+			echo >&2 "warning: '$imageIdentifier' uses schemaVersion '$schemaVersion'"
+			echo >&2 "  this script cannot (currently) recreate the 'image config' to put in a 'manifest.json' (thus any schemaVersion 2+ images will be imported in the old way, and their 'docker history' will suffer)"
+			echo >&2
+			doNotGenerateManifestJson=1
+		fi
+
+		layersFs="$(echo "$manifestJson" | jq --raw-output '.fsLayers | .[] | .blobSum')"
+		IFS="$newlineIFS"
+		layers=($layersFs)
+		unset IFS
+
+		history="$(echo "$manifestJson" | jq '.history | [.[] | .v1Compatibility]')"
+		imageId="$(echo "$history" | jq --raw-output '.[0]' | jq --raw-output '.id')"
+
+		echo "Downloading '$imageIdentifier' (${#layers[@]} layers)..."
+		for i in "${!layers[@]}"; do
+			imageJson="$(echo "$history" | jq --raw-output ".[${i}]")"
+			layerId="$(echo "$imageJson" | jq --raw-output '.id')"
+			imageLayer="${layers[$i]}"
+
+			mkdir -p "$dir/$layerId"
+			echo '1.0' >"$dir/$layerId/VERSION"
+
+			echo "$imageJson" >"$dir/$layerId/json"
+
+			# TODO figure out why "-C -" doesn't work here
+			# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
+			# "HTTP/1.1 416 Requested Range Not Satisfiable"
+			if [ -f "$dir/$layerId/layer.tar" ]; then
+				# TODO hackpatch for no -C support :'(
+				echo "skipping existing ${layerId:0:12}"
+				continue
+			fi
+			token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
+			fetch_blob "$token" "$image" "$imageLayer" "$dir/$layerId/layer.tar" --progress
+		done
+		;;
+
+	*)
+		echo >&2 "error: unknown manifest schemaVersion ($imageIdentifier): '$schemaVersion'"
+		exit 1
+		;;
 	esac
 
 	echo
 
 	if [ -s "$dir/tags-$imageFile.tmp" ]; then
-		echo -n ', ' >> "$dir/tags-$imageFile.tmp"
+		echo -n ', ' >>"$dir/tags-$imageFile.tmp"
 	else
-		images=( "${images[@]}" "$image" )
+		images=("${images[@]}" "$image")
 	fi
-	echo -n '"'"$tag"'": "'"$imageId"'"' >> "$dir/tags-$imageFile.tmp"
+	echo -n '"'"$tag"'": "'"$imageId"'"' >>"$dir/tags-$imageFile.tmp"
 done
 
-echo -n '{' > "$dir/repositories"
+echo -n '{' >"$dir/repositories"
 firstImage=1
 for image in "${images[@]}"; do
 	imageFile="${image//\//_}" # "/" can't be in filenames :)
 	image="${image#library\/}"
 
-	[ "$firstImage" ] || echo -n ',' >> "$dir/repositories"
+	[ "$firstImage" ] || echo -n ',' >>"$dir/repositories"
 	firstImage=
-	echo -n $'\n\t' >> "$dir/repositories"
-	echo -n '"'"$image"'": { '"$(cat "$dir/tags-$imageFile.tmp")"' }' >> "$dir/repositories"
+	echo -n $'\n\t' >>"$dir/repositories"
+	echo -n '"'"$image"'": { '"$(cat "$dir/tags-$imageFile.tmp")"' }' >>"$dir/repositories"
 done
-echo -n $'\n}\n' >> "$dir/repositories"
+echo -n $'\n}\n' >>"$dir/repositories"
 
 rm -f "$dir"/tags-*.tmp
 
 if [ -z "$doNotGenerateManifestJson" ] && [ "${#manifestJsonEntries[@]}" -gt 0 ]; then
-	echo '[]' | jq --raw-output ".$(for entry in "${manifestJsonEntries[@]}"; do echo " + [ $entry ]"; done)" > "$dir/manifest.json"
+	echo '[]' | jq --raw-output ".$(for entry in "${manifestJsonEntries[@]}"; do echo " + [ $entry ]"; done)" >"$dir/manifest.json"
 else
 	rm -f "$dir/manifest.json"
 fi

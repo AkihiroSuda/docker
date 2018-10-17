@@ -26,7 +26,7 @@ case "$1" in
 	[ -e "$BUNDLE/binary-daemon/dockerd" ] || errexit "you need to build binaries first"
 	[ -f "$BUNDLE/binary-client/docker" ] || errexit "you need to build binaries first"
 	git -C "$DATABASE" reset --hard >/dev/null
-	echo "$BUNDLE_PATH" > "$DATABASE_KEY"
+	echo "$BUNDLE_PATH" >"$DATABASE_KEY"
 	git -C "$DATABASE" add "$DATABASE_KEY"
 	git -C "$DATABASE" commit -m "update bundle to $BUNDLE_PATH"
 	rm -f /usr/local/bin/docker

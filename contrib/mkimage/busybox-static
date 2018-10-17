@@ -24,7 +24,7 @@ cp "$busybox" "$rootfsDir/bin/busybox"
 	cd "$rootfsDir"
 
 	IFS=$'\n'
-	modules=( $(bin/busybox --list-modules) )
+	modules=($(bin/busybox --list-modules))
 	unset IFS
 
 	for module in "${modules[@]}"; do

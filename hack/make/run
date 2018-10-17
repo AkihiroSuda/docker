@@ -3,7 +3,7 @@
 set -e
 rm -rf "$DEST"
 
-if ! command -v dockerd &> /dev/null; then
+if ! command -v dockerd &>/dev/null; then
 	echo >&2 'error: binary-daemon or dynbinary-daemon must be run before run'
 	false
 fi
@@ -21,10 +21,9 @@ if [ -n "$DOCKER_STORAGE_OPTS" ]; then
 	unset IFS
 fi
 
-
 listen_port=2375
 if [ -n "$DOCKER_PORT" ]; then
-	IFS=':' read -r -a ports <<< "$DOCKER_PORT"
+	IFS=':' read -r -a ports <<<"$DOCKER_PORT"
 	listen_port="${ports[-1]}"
 fi
 
