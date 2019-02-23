@@ -77,7 +77,12 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 
 		if m.BindOptions != nil {
 			mount.BindOptions = &mounttypes.BindOptions{
-				Propagation: mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+				Propagation:  "",
+				NonRecursive: m.BindOptions.NonRecursive,
+			}
+			if m.BindOptions.Propagation >= 0 {
+				propagationName := swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)]
+				mount.BindOptions.Propagation = mounttypes.Propagation(strings.ToLower(propagationName))
 			}
 		}
 
@@ -322,16 +327,18 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		}
 
 		if m.BindOptions != nil {
-			if mountPropagation, ok := swarmapi.Mount_BindOptions_MountPropagation_value[strings.ToUpper(string(m.BindOptions.Propagation))]; ok {
-				mount.BindOptions = &swarmapi.Mount_BindOptions{Propagation: swarmapi.Mount_BindOptions_MountPropagation(mountPropagation)}
-			} else if string(m.BindOptions.Propagation) != "" {
-				return nil, fmt.Errorf("invalid MountPropagation: %q", m.BindOptions.Propagation)
+			mount.BindOptions = &swarmapi.Mount_BindOptions{
+				// Negative value corresponds to the empty ("") propagation.
+				// Note that zero-value stands for rprivate, which differs from the empty ("") propagation.
+				// See daemon/{oci_linux.go,volumes_linux.go} .
+				Propagation:  -1,
+				NonRecursive: m.BindOptions.NonRecursive,
 			}
 
-			if m.BindOptions.NonRecursive {
-				// TODO(AkihiroSuda): NonRecursive is unsupported for Swarm-mode now because of mutual vendoring
-				// across moby and swarmkit. Will be available soon after the moby PR gets merged.
-				return nil, fmt.Errorf("invalid NonRecursive: %q", m.BindOptions.Propagation)
+			if mountPropagation, ok := swarmapi.Mount_BindOptions_MountPropagation_value[strings.ToUpper(string(m.BindOptions.Propagation))]; ok {
+				mount.BindOptions.Propagation = swarmapi.Mount_BindOptions_MountPropagation(mountPropagation)
+			} else if string(m.BindOptions.Propagation) != "" {
+				return nil, fmt.Errorf("invalid MountPropagation: %q", m.BindOptions.Propagation)
 			}
 		}
 
