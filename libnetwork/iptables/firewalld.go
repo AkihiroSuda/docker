@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/rootless"
 	dbus "github.com/godbus/dbus/v5"
 	"github.com/sirupsen/logrus"
 )
@@ -70,12 +69,6 @@ var (
 // FirewalldInit initializes firewalld management code.
 func FirewalldInit() error {
 	var err error
-
-	// When running with RootlessKit, firewalld is running as the root outside our network namespace
-	// https://github.com/moby/moby/issues/43781
-	if rootless.RunningWithRootlessKit() {
-		return fmt.Errorf("skipping firewalld management for rootless mode")
-	}
 
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
