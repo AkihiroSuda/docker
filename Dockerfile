@@ -91,7 +91,7 @@ ARG TARGETPLATFORM
 # Go-swagger is used in CI for generating types from swagger.yaml in
 # hack/validate/swagger-gen
 ARG GO_SWAGGER_VERSION=v0.33.1
-ADD https://github.com/go-swagger/go-swagger.git?tag=${GO_SWAGGER_VERSION}&keep-git-dir=1 /go/src/github.com/go-swagger/go-swagger
+ADD --keep-git-dir=true https://github.com/go-swagger/go-swagger.git?tag=${GO_SWAGGER_VERSION} /go/src/github.com/go-swagger/go-swagger
 RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
   set -e
@@ -131,7 +131,7 @@ WORKDIR /usr/src/delve
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
 ARG DELVE_VERSION=v1.25.2
-ADD https://github.com/go-delve/delve.git?tag=${DELVE_VERSION}&keep-git-dir=1 .
+ADD --keep-git-dir=true https://github.com/go-delve/delve.git?tag=${DELVE_VERSION} .
 
 FROM base AS delve-supported
 WORKDIR /usr/src/delve
@@ -150,7 +150,7 @@ FROM delve-${DELVE_SUPPORTED} AS delve
 FROM base AS gowinres
 # GOWINRES_VERSION defines go-winres tool version
 ARG GOWINRES_VERSION=v0.3.1
-ADD https://github.com/tc-hib/go-winres.git?tag=${GOWINRES_VERSION}&keep-git-dir=1 /go/src/github.com/tc-hib/go-winres
+ADD --keep-git-dir=true https://github.com/tc-hib/go-winres.git?tag=${GOWINRES_VERSION} /go/src/github.com/tc-hib/go-winres
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         cd /go/src/github.com/tc-hib/go-winres && \
@@ -165,7 +165,7 @@ WORKDIR /usr/src/containerd
 # separate (containerd.io) package, which may be a different version as is
 # specified here.
 ARG CONTAINERD_VERSION=v2.2.0
-ADD https://github.com/containerd/containerd.git?tag=${CONTAINERD_VERSION}&keep-git-dir=1 .
+ADD --keep-git-dir=true https://github.com/containerd/containerd.git?tag=${CONTAINERD_VERSION} .
 
 FROM base AS containerd-build
 WORKDIR /go/src/github.com/containerd/containerd
@@ -196,7 +196,7 @@ FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
 ARG GOLANGCI_LINT_VERSION=v2.1.5
-ADD https://github.com/golangci/golangci-lint.git?tag=${GOLANGCI_LINT_VERSION}&keep-git-dir=1 /go/src/github.com/golangci/golangci-lint
+ADD --keep-git-dir=true https://github.com/golangci/golangci-lint.git?tag=${GOLANGCI_LINT_VERSION} /go/src/github.com/golangci/golangci-lint
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         cd /go/src/github.com/golangci/golangci-lint && \
@@ -206,7 +206,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 FROM base AS gotestsum
 # GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
 ARG GOTESTSUM_VERSION=v1.13.0
-ADD https://github.com/gotestyourself/gotestsum.git?tag=${GOTESTSUM_VERSION}&keep-git-dir=1 /go/src/gotest.tools/gotestsum
+ADD --keep-git-dir=true https://github.com/gotestyourself/gotestsum.git?tag=${GOTESTSUM_VERSION} /go/src/gotest.tools/gotestsum
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         cd /go/src/gotest.tools/gotestsum && \
@@ -215,7 +215,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS shfmt
 ARG SHFMT_VERSION=v3.8.0
-ADD https://github.com/mvdan/sh.git?tag=${SHFMT_VERSION}&keep-git-dir=1 /go/src/mvdan.cc/sh
+ADD --keep-git-dir=true https://github.com/mvdan/sh.git?tag=${SHFMT_VERSION} /go/src/mvdan.cc/sh
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         cd /go/src/mvdan.cc/sh && \
@@ -224,7 +224,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS gopls
 ARG GOPLS_VERSION=v0.20.0
-ADD https://github.com/golang/tools.git?tag=gopls/${GOPLS_VERSION}&keep-git-dir=1 /go/src/golang.org/x/tools
+ADD --keep-git-dir=true https://github.com/golang/tools.git?tag=gopls/${GOPLS_VERSION} /go/src/golang.org/x/tools
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         cd /go/src/golang.org/x/tools/gopls && \
@@ -264,7 +264,7 @@ WORKDIR /usr/src/runc
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
 ARG RUNC_VERSION=v1.3.3
-ADD https://github.com/opencontainers/runc.git?tag=${RUNC_VERSION}&keep-git-dir=1 .
+ADD --keep-git-dir=true https://github.com/opencontainers/runc.git?tag=${RUNC_VERSION} .
 
 FROM base AS runc-build
 WORKDIR /go/src/github.com/opencontainers/runc
@@ -297,7 +297,7 @@ WORKDIR /usr/src/tini
 # TINI_VERSION specifies the version of tini (docker-init) to build. This
 # binary is used when starting containers with the `--init` option.
 ARG TINI_VERSION=v0.19.0
-ADD https://github.com/krallin/tini.git?tag=${TINI_VERSION}&keep-git-dir=1 .
+ADD --keep-git-dir=true https://github.com/krallin/tini.git?tag=${TINI_VERSION} .
 
 FROM base AS tini-build
 WORKDIR /go/src/github.com/krallin/tini
@@ -330,7 +330,7 @@ FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
 # When updating, also update go.mod and hack/dockerfile/install/rootlesskit.installer accordingly.
 ARG ROOTLESSKIT_VERSION=v2.3.5
-ADD https://github.com/rootless-containers/rootlesskit.git?tag=${ROOTLESSKIT_VERSION}&keep-git-dir=1 .
+ADD --keep-git-dir=true https://github.com/rootless-containers/rootlesskit.git?tag=${ROOTLESSKIT_VERSION} .
 
 FROM base AS rootlesskit-build
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
@@ -375,7 +375,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
             python3 \
             ;
 WORKDIR /tmp/crun-build
-ADD https://github.com/containers/crun.git?tag=${CRUN_VERSION}&keep-git-dir=1 .
+ADD --keep-git-dir=true https://github.com/containers/crun.git?tag=${CRUN_VERSION} .
 RUN ./autogen.sh && \
     ./configure --bindir=/build && \
     make -j install
@@ -397,7 +397,7 @@ FROM vpnkit-${TARGETOS} AS vpnkit
 FROM base AS containerutil-src
 WORKDIR /usr/src/containerutil
 ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
-ADD https://github.com/docker-archive/windows-container-utility.git?commit=${CONTAINERUTILITY_VERSION}&keep-git-dir=1 .
+ADD --keep-git-dir=true https://github.com/docker-archive/windows-container-utility.git?commit=${CONTAINERUTILITY_VERSION} .
 
 FROM base AS containerutil-build
 WORKDIR /usr/src/containerutil
