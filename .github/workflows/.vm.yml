@@ -165,7 +165,12 @@ jobs:
         if: always()
         run: |
           set -eux -o pipefail
-          limactl cp -v -r default:/tmp/docker/bundles . || true
+          # The scp backend is used because the rsync backend copies the
+          # *contents* of the directory into the destination, i.e. the reports
+          # would end up outside bundles/. The rsync backend is only picked
+          # when the guest has rsync, which is the case for openSUSE.
+          # https://github.com/lima-vm/lima/issues/5500
+          limactl cp --backend=scp -v -r default:/tmp/docker/bundles . || true
           reportsName="${{ env.TEMPLATE_NAME }}"
           reportsName="${reportsName#template:}"
           if [ -n "${{ matrix.mode }}" ]; then
