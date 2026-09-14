@@ -45,6 +45,8 @@ jobs:
           # https://github.com/moby/moby/pull/49819#issuecomment-2815676000
           - template: template:oraclelinux-8  # Oracle's kernel 5.15
             integration_dir: ./integration/container ./integration/build ./integration/system
+          - template: template:experimental/opensuse-tumbleweed
+            integration_dir: ./integration/container ./integration/build ./integration/system
     with:
       template: ${{ matrix.template }}
       integration_dir: ${{ matrix.integration_dir }}
